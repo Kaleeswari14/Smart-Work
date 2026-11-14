@@ -1,0 +1,14 @@
+{
+  "outputDirectory": "build/web",
+  "cleanUrls": true,
+  "rewrites": [
+    {
+      "source": "/smartiva.apk",
+      "destination": "/smartiva.apk"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
