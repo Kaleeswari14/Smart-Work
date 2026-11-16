@@ -109,10 +109,11 @@ void main() {
     await tester.pumpAndSettle();
 
     final workFields = find.byType(TextField);
-    await tester.enterText(workFields.at(0), "Engine Overhaul");
-    await tester.enterText(workFields.at(1), "Full servicing of engine");
-    await tester.enterText(workFields.at(2), "5000");
-    await tester.enterText(workFields.at(3), "1000");
+    // Index 0 is the customer search field (already defaulted to Ramesh)
+    await tester.enterText(workFields.at(1), "Engine Overhaul");
+    await tester.enterText(workFields.at(2), "Full servicing of engine");
+    await tester.enterText(workFields.at(3), "5000");
+    await tester.enterText(workFields.at(4), "1000");
     await tester.pumpAndSettle();
 
     final saveWorkBtn = find.widgetWithText(ElevatedButton, "Save").first;

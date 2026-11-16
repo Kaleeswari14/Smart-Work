@@ -400,29 +400,124 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                     ),
                     const SizedBox(height: 16),
 
-                    // Customer Selector Dropdown
-                    DropdownButtonFormField<String>(
-                      value: selectedCustomerId,
-                      decoration: InputDecoration(
-                        labelText: context.tr("select_customer"),
-                        prefixIcon: const Icon(Icons.person_outline),
+                    // Customer Selector: Manual Type + Automatic Dropdown Search
+                    RawAutocomplete<CustomerItem>(
+                      initialValue: TextEditingValue(
+                        text: customers.first.phone.isNotEmpty
+                            ? "${customers.first.name} (${customers.first.phone})"
+                            : customers.first.name,
                       ),
-                      items: customers.map((c) {
-                        return DropdownMenuItem(
-                          value: c.id,
-                          child: Text(
-                            c.phone.isNotEmpty ? "${c.name} (${c.phone})" : c.name,
+                      displayStringForOption: (CustomerItem c) =>
+                          c.phone.isNotEmpty ? "${c.name} (${c.phone})" : c.name,
+                      optionsBuilder: (TextEditingValue textEditingValue) {
+                        if (textEditingValue.text.isEmpty) {
+                          return customers;
+                        }
+                        final q = textEditingValue.text.toLowerCase();
+                        return customers.where((c) =>
+                            c.name.toLowerCase().contains(q) || c.phone.contains(q));
+                      },
+                      onSelected: (CustomerItem selection) {
+                        setModalState(() {
+                          selectedCustomerId = selection.id;
+                          selectedCustomerName = selection.name;
+                        });
+                      },
+                      fieldViewBuilder:
+                          (context, textEditingController, focusNode, onFieldSubmitted) {
+                        return TextField(
+                          controller: textEditingController,
+                          focusNode: focusNode,
+                          decoration: InputDecoration(
+                            labelText: context.tr("select_customer"),
+                            hintText: "Type customer name or phone...",
+                            prefixIcon: const Icon(Icons.person_search_outlined),
+                            suffixIcon: IconButton(
+                              icon: const Icon(Icons.arrow_drop_down),
+                              tooltip: "View all customers",
+                              onPressed: () {
+                                if (!focusNode.hasFocus) {
+                                  focusNode.requestFocus();
+                                }
+                              },
+                            ),
+                          ),
+                          onChanged: (val) {
+                            final match = customers.where((c) =>
+                                c.name.toLowerCase() == val.trim().toLowerCase() ||
+                                c.phone == val.trim()).firstOrNull;
+                            if (match != null) {
+                              setModalState(() {
+                                selectedCustomerId = match.id;
+                                selectedCustomerName = match.name;
+                              });
+                            }
+                          },
+                        );
+                      },
+                      optionsViewBuilder: (context, onSelected, options) {
+                        return Align(
+                          alignment: Alignment.topLeft,
+                          child: Material(
+                            elevation: 8,
+                            borderRadius: BorderRadius.circular(10),
+                            color: Colors.white,
+                            child: ConstrainedBox(
+                              constraints: BoxConstraints(
+                                maxHeight: 200,
+                                maxWidth: MediaQuery.of(context).size.width - 40,
+                              ),
+                              child: ListView.separated(
+                                padding: EdgeInsets.zero,
+                                shrinkWrap: true,
+                                itemCount: options.length,
+                                separatorBuilder: (context, index) => const Divider(height: 1),
+                                itemBuilder: (BuildContext context, int index) {
+                                  final CustomerItem c = options.elementAt(index);
+                                  final isSelected = c.id == selectedCustomerId;
+                                  return ListTile(
+                                    dense: true,
+                                    selected: isSelected,
+                                    leading: CircleAvatar(
+                                      radius: 14,
+                                      backgroundColor: isSelected
+                                          ? const Color(0xFF1E3A8A)
+                                          : const Color(0xFF1E3A8A).withValues(alpha: 0.1),
+                                      foregroundColor:
+                                          isSelected ? Colors.white : const Color(0xFF1E3A8A),
+                                      child: Text(
+                                        c.name.isNotEmpty ? c.name[0].toUpperCase() : "C",
+                                        style: const TextStyle(
+                                          fontWeight: FontWeight.bold,
+                                          fontSize: 12,
+                                        ),
+                                      ),
+                                    ),
+                                    title: Text(
+                                      c.name,
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 13,
+                                      ),
+                                    ),
+                                    subtitle: c.phone.isNotEmpty
+                                        ? Text(
+                                            c.phone,
+                                            style: TextStyle(
+                                              fontSize: 11,
+                                              color: Colors.grey.shade600,
+                                            ),
+                                          )
+                                        : null,
+                                    onTap: () {
+                                      onSelected(c);
+                                    },
+                                  );
+                                },
+                              ),
+                            ),
                           ),
                         );
-                      }).toList(),
-                      onChanged: (val) {
-                        if (val != null) {
-                          setModalState(() {
-                            selectedCustomerId = val;
-                            selectedCustomerName =
-                                customers.firstWhere((c) => c.id == val).name;
-                          });
-                        }
                       },
                     ),
                     const SizedBox(height: 12),

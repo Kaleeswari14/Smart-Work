@@ -85,36 +85,79 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                   ),
                   const SizedBox(height: 16),
 
-                  // Contact Info Card
-                  Card(
-                    color: Colors.grey.shade50,
-                    child: Padding(
-                      padding: const EdgeInsets.all(14.0),
-                      child: Column(
-                        children: [
-                          if (customer.email.isNotEmpty)
-                            Row(
-                              children: [
-                                const Icon(Icons.email_outlined, size: 16, color: Colors.grey),
-                                const SizedBox(width: 8),
-                                Text(customer.email, style: const TextStyle(fontSize: 13)),
-                              ],
-                            ),
-                          if (customer.address.isNotEmpty) ...[
-                            if (customer.email.isNotEmpty) const SizedBox(height: 8),
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(customer.address, style: const TextStyle(fontSize: 13)),
-                                ),
-                              ],
+                  // Contact & Address Info Card
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(14.0),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF1E3A8A).withValues(alpha: 0.05),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: const Color(0xFF1E3A8A).withValues(alpha: 0.12)),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        // Phone Row
+                        Row(
+                          children: [
+                            const Icon(Icons.phone_outlined, size: 16, color: Color(0xFF1E3A8A)),
+                            const SizedBox(width: 8),
+                            const Text("Phone: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                            Text(
+                              customer.phone.isNotEmpty ? customer.phone : "Not provided",
+                              style: TextStyle(
+                                fontSize: 13,
+                                color: customer.phone.isNotEmpty ? Colors.black87 : Colors.grey,
+                                fontWeight: customer.phone.isNotEmpty ? FontWeight.w600 : FontWeight.normal,
+                              ),
                             ),
                           ],
+                        ),
+                        if (customer.email.isNotEmpty) ...[
+                          const SizedBox(height: 8),
+                          Row(
+                            children: [
+                              const Icon(Icons.email_outlined, size: 16, color: Color(0xFF0D9488)),
+                              const SizedBox(width: 8),
+                              const Text("Email: ", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
+                              Expanded(
+                                child: Text(customer.email, style: const TextStyle(fontSize: 13)),
+                              ),
+                            ],
+                          ),
                         ],
-                      ),
+                        const SizedBox(height: 10),
+                        const Divider(height: 1),
+                        const SizedBox(height: 10),
+                        // Address Row (Always clear and prominent!)
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.location_on_outlined, size: 18, color: Colors.redAccent),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  const Text(
+                                    "Address / Mugavari:",
+                                    style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E293B)),
+                                  ),
+                                  const SizedBox(height: 2),
+                                  Text(
+                                    customer.address.isNotEmpty ? customer.address : "No address added yet (Edit icon click seithu add seiyalam)",
+                                    style: TextStyle(
+                                      fontSize: 13,
+                                      color: customer.address.isNotEmpty ? Colors.black87 : Colors.grey.shade600,
+                                      fontWeight: customer.address.isNotEmpty ? FontWeight.w500 : FontWeight.normal,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
                   ),
 
@@ -625,6 +668,23 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                                             ),
                                           ],
                                         ),
+                                        if (customer.address.isNotEmpty) ...[
+                                          const SizedBox(height: 3),
+                                          Row(
+                                            children: [
+                                              Icon(Icons.location_on_outlined, size: 11, color: Colors.grey.shade600),
+                                              const SizedBox(width: 3),
+                                              Expanded(
+                                                child: Text(
+                                                  customer.address,
+                                                  style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                                  maxLines: 1,
+                                                  overflow: TextOverflow.ellipsis,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ],
                                       ],
                                     ),
                                   ),
