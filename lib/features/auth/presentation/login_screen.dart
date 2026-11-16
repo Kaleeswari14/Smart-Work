@@ -1,8 +1,6 @@
-import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:go_router/go_router.dart";
-import "package:url_launcher/url_launcher.dart";
 import "../../../core/localization/app_localizations.dart";
 import "../../../core/localization/language_provider.dart";
 import "auth_provider.dart";
@@ -15,8 +13,8 @@ class LoginScreen extends ConsumerStatefulWidget {
 }
 
 class _LoginScreenState extends ConsumerState<LoginScreen> {
-  final _emailController = TextEditingController(text: "admin@smart.com");
-  final _passwordController = TextEditingController(text: "admin@1407");
+  final _emailController = TextEditingController();
+  final _passwordController = TextEditingController();
   final _nameController = TextEditingController();
   bool _obscurePassword = true;
   bool _isSignUpMode = false;
@@ -30,9 +28,21 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Future<void> _handleAuth() async {
-    final email = _emailController.text.trim().isEmpty ? "admin@smart.com" : _emailController.text.trim();
-    final password = _passwordController.text.trim().isEmpty ? "admin@1407" : _passwordController.text.trim();
+    final email = _emailController.text.trim();
+    final password = _passwordController.text.trim();
     final isTanglish = ref.read(languageProvider).languageCode == "ta";
+
+    if (email.isEmpty || password.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            isTanglish ? "Email matrum Password enter seiyavum." : "Please enter your Email and Password.",
+          ),
+          backgroundColor: Colors.orange.shade800,
+        ),
+      );
+      return;
+    }
 
     final authNotifier = ref.read(authNotifierProvider.notifier);
     bool success = false;
@@ -343,25 +353,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       ),
                     ),
 
-                    if (kIsWeb) ...[
-                      const SizedBox(height: 12),
-                      const Divider(height: 20),
-                      OutlinedButton.icon(
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                          side: BorderSide(color: Colors.green.shade600),
-                          foregroundColor: Colors.green.shade800,
-                          backgroundColor: Colors.green.shade50.withValues(alpha: 0.5),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-                        ),
-                        icon: const Icon(Icons.android, color: Colors.green, size: 22),
-                        label: Text(
-                          context.tr("download_apk"),
-                          style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                        ),
-                        onPressed: _downloadApk,
-                      ),
-                    ],
                   ],
                 ),
               ),
@@ -370,12 +361,5 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       ),
     );
-  }
-
-  Future<void> _downloadApk() async {
-    final uri = Uri.parse("smartiva.apk");
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
-    }
   }
 }

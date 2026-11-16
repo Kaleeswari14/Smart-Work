@@ -1,4 +1,4 @@
-﻿import "package:flutter/foundation.dart";
+import "package:flutter/foundation.dart";
 import "../../../core/config/supabase_config.dart";
 import "../presentation/customers_provider.dart";
 
@@ -90,7 +90,17 @@ class CustomersRepository {
     if (client == null) return false;
 
     try {
+      final worksData = await client.from("works").select("id").eq("customer_id", customerId);
+      for (final item in worksData) {
+        final workId = item["id"]?.toString();
+        if (workId != null) {
+          await client.from("payments").delete().eq("work_id", workId);
+          await client.from("work_sessions").delete().eq("work_id", workId);
+        }
+      }
+      await client.from("works").delete().eq("customer_id", customerId);
       await client.from("customers").delete().eq("id", customerId);
+      debugPrint("✅ Customer $customerId and related records deleted.");
       return true;
     } catch (e) {
       debugPrint("⚠️ Error deleting customer in Supabase: $e");

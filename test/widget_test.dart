@@ -34,7 +34,11 @@ void main() {
     expect(find.text("Smartiva"), findsWidgets);
     expect(find.text("Ulle Nulai"), findsWidgets);
 
-    // 3. Tap Sign In button (now labelled "Ulle Nulai") to enter Dashboard
+    // 3. Enter login credentials and tap Sign In button
+    await tester.enterText(find.byType(TextField).at(0), "admin@smart.com");
+    await tester.enterText(find.byType(TextField).at(1), "admin@1407");
+    await tester.pumpAndSettle();
+
     final signInButton = find.widgetWithText(ElevatedButton, "Ulle Nulai");
     expect(signInButton, findsOneWidget);
     await tester.ensureVisible(signInButton);
@@ -62,7 +66,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    // 1. Sign In (Tap the main login ElevatedButton)
+    // 1. Sign In (Enter credentials and tap login ElevatedButton)
+    await tester.enterText(find.byType(TextField).at(0), "admin@smart.com");
+    await tester.enterText(find.byType(TextField).at(1), "admin@1407");
+    await tester.pumpAndSettle();
+
     final signInBtn = find.byType(ElevatedButton).first;
     await tester.ensureVisible(signInBtn);
     await tester.tap(signInBtn);

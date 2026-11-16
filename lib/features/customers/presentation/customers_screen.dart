@@ -420,6 +420,35 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     );
   }
 
+  void _confirmDeleteCustomer(CustomerItem customer) {
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(context.tr("delete")),
+        content: Text("Are you sure you want to delete '${customer.name}'? All related works and payments will also be deleted."),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: Text(context.tr("cancel")),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            onPressed: () async {
+              Navigator.pop(ctx);
+              await ref.read(customersListProvider.notifier).deleteCustomer(customer.id);
+              if (mounted) {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(content: Text("Customer '${customer.name}' deleted.")),
+                );
+              }
+            },
+            child: Text(context.tr("delete")),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final customers = ref.watch(customersListProvider);
@@ -477,64 +506,118 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
 
                         return Card(
                           margin: const EdgeInsets.only(bottom: 10.0),
-                          child: ListTile(
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            side: BorderSide(color: Colors.grey.shade200),
+                          ),
+                          child: InkWell(
                             onTap: () => _showCustomerDetailsDialog(customer, works),
-                            leading: CircleAvatar(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                              foregroundColor: Theme.of(context).colorScheme.primary,
-                              child: Text(
-                                customer.name.isNotEmpty ? customer.name[0].toUpperCase() : "C",
-                                style: const TextStyle(fontWeight: FontWeight.bold),
-                              ),
-                            ),
-                            title: Text(
-                              customer.name,
-                              style: const TextStyle(fontWeight: FontWeight.bold),
-                            ),
-                            subtitle: Text(
-                              customer.phone.isNotEmpty
-                                  ? customer.phone
-                                  : (customer.email.isNotEmpty ? customer.email : "No contact info"),
-                              style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                            ),
-                            trailing: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: const Color(0xFF0D9488).withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Text(
-                                    "$customerWorksCount Works",
-                                    style: const TextStyle(
-                                      fontSize: 11,
-                                      fontWeight: FontWeight.bold,
-                                      color: Color(0xFF0D9488),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 14.0, vertical: 12.0),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.center,
+                                children: [
+                                  CircleAvatar(
+                                    radius: 20,
+                                    backgroundColor:
+                                        Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                                    foregroundColor: Theme.of(context).colorScheme.primary,
+                                    child: Text(
+                                      customer.name.isNotEmpty ? customer.name[0].toUpperCase() : "C",
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
                                     ),
                                   ),
-                                ),
-                                const SizedBox(width: 4),
-                                // View Customer Details Icon
-                                IconButton(
-                                  icon: const Icon(Icons.visibility_outlined, size: 20, color: Color(0xFF1E3A8A)),
-                                  tooltip: "View Customer",
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _showCustomerDetailsDialog(customer, works),
-                                ),
-                                const SizedBox(width: 4),
-                                // Edit Customer Icon
-                                IconButton(
-                                  icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF0D9488)),
-                                  tooltip: "Edit Customer",
-                                  padding: const EdgeInsets.symmetric(horizontal: 4),
-                                  constraints: const BoxConstraints(),
-                                  onPressed: () => _showEditCustomerModal(customer),
-                                ),
-                              ],
+                                  const SizedBox(width: 12),
+                                  // Customer Name & Info takes ALL available space!
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Text(
+                                          customer.name,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.w700,
+                                            fontSize: 15,
+                                            color: Color(0xFF1E293B),
+                                          ),
+                                          maxLines: 2,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                        const SizedBox(height: 4),
+                                        Wrap(
+                                          crossAxisAlignment: WrapCrossAlignment.center,
+                                          spacing: 6,
+                                          runSpacing: 4,
+                                          children: [
+                                            if (customer.phone.isNotEmpty) ...[
+                                              Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  Icon(Icons.phone_outlined, size: 12, color: Colors.grey.shade600),
+                                                  const SizedBox(width: 2),
+                                                  Text(
+                                                    customer.phone,
+                                                    style: TextStyle(
+                                                      fontSize: 12,
+                                                      color: Colors.grey.shade700,
+                                                      fontWeight: FontWeight.w500,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ],
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                              decoration: BoxDecoration(
+                                                color: const Color(0xFF0D9488).withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: Text(
+                                                "$customerWorksCount Works",
+                                                style: const TextStyle(
+                                                  fontSize: 11,
+                                                  fontWeight: FontWeight.bold,
+                                                  color: Color(0xFF0D9488),
+                                                ),
+                                              ),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 6),
+                                  // Compact Action Icons
+                                  Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.visibility_outlined, size: 17, color: Color(0xFF1E3A8A)),
+                                        tooltip: "View Customer",
+                                        padding: const EdgeInsets.all(5),
+                                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                        onPressed: () => _showCustomerDetailsDialog(customer, works),
+                                      ),
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 17, color: Color(0xFF0D9488)),
+                                        tooltip: "Edit Customer",
+                                        padding: const EdgeInsets.all(5),
+                                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                        onPressed: () => _showEditCustomerModal(customer),
+                                      ),
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline, size: 17, color: Colors.red.shade700),
+                                        tooltip: "Delete Customer",
+                                        padding: const EdgeInsets.all(5),
+                                        constraints: const BoxConstraints(minWidth: 30, minHeight: 30),
+                                        onPressed: () => _confirmDeleteCustomer(customer),
+                                      ),
+                                    ],
+                                  ),
+                                ],
+                              ),
                             ),
                           ),
                         );

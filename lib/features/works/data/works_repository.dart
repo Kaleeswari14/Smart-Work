@@ -242,7 +242,10 @@ class WorksRepository {
     if (client == null) return false;
 
     try {
+      await client.from("payments").delete().eq("work_id", workId);
+      await client.from("work_sessions").delete().eq("work_id", workId);
       await client.from("works").delete().eq("id", workId);
+      debugPrint("✅ Work $workId and its sessions/payments deleted successfully.");
       return true;
     } catch (e) {
       debugPrint("⚠️ Error deleting work in Supabase: $e");

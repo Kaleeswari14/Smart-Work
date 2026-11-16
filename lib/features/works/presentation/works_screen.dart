@@ -742,56 +742,61 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
             // Top Row: Customer Badge, View Icon, & Status Badge
             Row(
               children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(Icons.person, size: 14, color: Theme.of(context).colorScheme.primary),
-                      const SizedBox(width: 4),
-                      Text(
-                        work.customerName,
-                        style: TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          color: Theme.of(context).colorScheme.primary,
+                Flexible(
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.person, size: 14, color: Theme.of(context).colorScheme.primary),
+                        const SizedBox(width: 4),
+                        Flexible(
+                          child: Text(
+                            work.customerName,
+                            style: TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).colorScheme.primary,
+                            ),
+                            overflow: TextOverflow.ellipsis,
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
-                const Spacer(),
+                const SizedBox(width: 8),
                 Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     // 1. View Icon (Eye)
                     IconButton(
-                      icon: const Icon(Icons.visibility_outlined, size: 20, color: Color(0xFF1E3A8A)),
+                      icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF1E3A8A)),
                       tooltip: "View Details",
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                       onPressed: () => _showWorkDetailsDialog(work),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     // 2. Edit Work Icon (Pencil)
                     IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 20, color: Color(0xFF0D9488)),
+                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0D9488)),
                       tooltip: "Edit Work",
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                       onPressed: () => _showEditWorkDialog(work),
                     ),
-                    const SizedBox(width: 4),
+                    const SizedBox(width: 2),
                     // 3. Delete Work Icon (Trash)
                     IconButton(
-                      icon: Icon(Icons.delete_outline, size: 20, color: Colors.red.shade700),
+                      icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade700),
                       tooltip: context.tr("delete_work"),
-                      padding: const EdgeInsets.symmetric(horizontal: 4),
-                      constraints: const BoxConstraints(),
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
                       onPressed: () => _confirmDeleteWork(work),
                     ),
                     const SizedBox(width: 4),
