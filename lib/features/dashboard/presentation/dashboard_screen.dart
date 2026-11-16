@@ -20,8 +20,8 @@ class DashboardScreen extends ConsumerWidget {
     final report = ref.watch(businessReportProvider);
 
     // Live Metrics Calculations
-    final activeWorksCount =
-        works.where((w) => w.status == "in_progress" || w.status == "pending").length;
+    final pendingWorksCount = works.where((w) => w.status == "pending").length;
+    final inProgressWorksCount = works.where((w) => w.status == "in_progress").length;
     final totalCustomersCount = customers.length;
     final completedWorks = works.where((w) => w.status == "completed").toList();
     final completedWorksCount = completedWorks.length;
@@ -62,16 +62,45 @@ class DashboardScreen extends ConsumerWidget {
             ),
             const SizedBox(height: 12),
 
-            // KPI Metric Cards (Live Real-Time Data)
+            // Row 1: Pending Works & In-Progress Live Works
             Row(
               children: [
                 Expanded(
                   child: _buildMetricCard(
                     context: context,
-                    title: context.tr("active_works_count"),
-                    value: activeWorksCount.toString(),
-                    icon: Icons.assignment_outlined,
+                    title: context.tr("pending_works_count"),
+                    value: "$pendingWorksCount Works",
+                    icon: Icons.hourglass_top,
+                    color: Colors.amber.shade900,
+                    onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: _buildMetricCard(
+                    context: context,
+                    title: context.tr("in_progress_works_count"),
+                    value: "$inProgressWorksCount Works",
+                    icon: Icons.play_circle_outline,
                     color: Colors.blue.shade700,
+                    onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+
+            // Row 2: Completed Works & Total Customers
+            Row(
+              children: [
+                Expanded(
+                  child: _buildMetricCard(
+                    context: context,
+                    title: context.tr("today_completed"),
+                    value: "$completedWorksCount Works",
+                    icon: Icons.task_alt,
+                    color: Colors.green.shade700,
+                    onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -82,33 +111,21 @@ class DashboardScreen extends ConsumerWidget {
                     value: totalCustomersCount.toString(),
                     icon: Icons.people_outline,
                     color: Colors.teal.shade700,
+                    onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(1),
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildMetricCard(
-                    context: context,
-                    title: context.tr("today_completed"),
-                    value: "$completedWorksCount Works",
-                    icon: Icons.task_alt,
-                    color: Colors.green.shade700,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: _buildMetricCard(
-                    context: context,
-                    title: context.tr("pending_dues"),
-                    value: "₹ ${pendingDues.toStringAsFixed(2)}",
-                    icon: Icons.account_balance_wallet_outlined,
-                    color: Colors.red.shade700,
-                  ),
-                ),
-              ],
+
+            // Row 3: Pending Dues / Collection
+            _buildMetricCard(
+              context: context,
+              title: context.tr("pending_dues"),
+              value: "₹ ${pendingDues.toStringAsFixed(2)}",
+              icon: Icons.account_balance_wallet_outlined,
+              color: Colors.red.shade700,
+              onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(3),
             ),
 
             if (kIsWeb) ...[
@@ -318,8 +335,9 @@ class DashboardScreen extends ConsumerWidget {
     required String value,
     required IconData icon,
     required Color color,
+    VoidCallback? onTap,
   }) {
-    return Card(
+    final card = Card(
       child: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
@@ -356,6 +374,15 @@ class DashboardScreen extends ConsumerWidget {
         ),
       ),
     );
+
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: card,
+      );
+    }
+    return card;
   }
 
   Widget _buildQuickActionButton({

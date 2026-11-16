@@ -6,6 +6,7 @@ import "package:url_launcher/url_launcher.dart";
 import "../../../core/localization/app_localizations.dart";
 import "../../../core/localization/language_provider.dart";
 import "../../auth/presentation/auth_provider.dart";
+import "../../auth/presentation/profile_security_dialog.dart";
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -101,6 +102,11 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                     ],
                   ),
+                ),
+                IconButton.filledTonal(
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  tooltip: context.tr("profile_security"),
+                  onPressed: () => ProfileSecurityDialog.show(context),
                 ),
               ],
             ),

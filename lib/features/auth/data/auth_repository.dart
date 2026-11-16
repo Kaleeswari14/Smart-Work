@@ -1,4 +1,5 @@
-﻿import "package:flutter/foundation.dart";
+import "package:flutter/foundation.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "package:supabase_flutter/supabase_flutter.dart";
 import "../../../core/config/supabase_config.dart";
 
@@ -99,6 +100,78 @@ class AuthRepository {
     } catch (e) {
       debugPrint("⚠️ Error fetching user profile: $e");
       return null;
+    }
+  }
+
+  Future<bool> verifyCurrentPassword({
+    required String email,
+    required String password,
+  }) async {
+    final client = _client;
+
+    // Check SharedPreferences first
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final savedPass = prefs.getString("custom_admin_password") ?? "admin@1407";
+      if (password == savedPass) {
+        return true;
+      }
+    } catch (_) {}
+
+    // If Supabase is connected, check with Supabase auth
+    if (client != null) {
+      try {
+        final res = await client.auth.signInWithPassword(
+          email: email,
+          password: password,
+        );
+        return res.user != null;
+      } catch (e) {
+        debugPrint("⚠️ Password verification failed in Supabase: $e");
+        return false;
+      }
+    }
+
+    return false;
+  }
+
+  Future<void> updateCredentials({
+    required String email,
+    String? newPassword,
+    String? newFullName,
+  }) async {
+    final client = _client;
+
+    // 1. Persist to local storage
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      if (newPassword != null && newPassword.isNotEmpty) {
+        await prefs.setString("custom_admin_password", newPassword);
+      }
+      if (newFullName != null && newFullName.isNotEmpty) {
+        await prefs.setString("custom_admin_name", newFullName);
+      }
+    } catch (e) {
+      debugPrint("⚠️ Error saving credentials to SharedPreferences: $e");
+    }
+
+    // 2. Persist to Supabase if connected
+    if (client != null && client.auth.currentUser != null) {
+      try {
+        final attributes = UserAttributes(
+          password: (newPassword != null && newPassword.isNotEmpty) ? newPassword : null,
+          data: (newFullName != null && newFullName.isNotEmpty) ? {"full_name": newFullName} : null,
+        );
+        await client.auth.updateUser(attributes);
+
+        if (newFullName != null && newFullName.isNotEmpty) {
+          final userId = client.auth.currentUser!.id;
+          await client.from("profiles").update({"full_name": newFullName}).eq("id", userId);
+        }
+      } catch (e) {
+        debugPrint("⚠️ Error updating credentials in Supabase: $e");
+        rethrow;
+      }
     }
   }
 }

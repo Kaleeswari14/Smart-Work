@@ -6,6 +6,7 @@ import "package:url_launcher/url_launcher.dart";
 import "../../../core/localization/app_localizations.dart";
 import "../../../core/localization/language_provider.dart";
 import "../../auth/presentation/auth_provider.dart";
+import "../../auth/presentation/profile_security_dialog.dart";
 import "../../../features/customers/presentation/customers_screen.dart";
 import "../../../features/dashboard/presentation/dashboard_screen.dart";
 import "../../../features/payments/presentation/payments_screen.dart";
@@ -73,6 +74,14 @@ class MainShellScreen extends ConsumerWidget {
           ),
         ),
         title: Text(_getScreenTitle(context, currentIndex)),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_circle, size: 28),
+            tooltip: context.tr("profile_security"),
+            onPressed: () => ProfileSecurityDialog.show(context),
+          ),
+          const SizedBox(width: 4),
+        ],
       ),
       drawer: Drawer(
         child: ListView(
@@ -200,6 +209,18 @@ class MainShellScreen extends ConsumerWidget {
               onTap: () {
                 ref.read(languageProvider.notifier).toggleLanguage();
                 Navigator.pop(context);
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.security, color: Color(0xFF1E3A8A)),
+              title: Text(context.tr("profile_security")),
+              subtitle: Text(
+                context.tr("profile_security_desc"),
+                style: const TextStyle(fontSize: 11),
+              ),
+              onTap: () {
+                Navigator.pop(context);
+                ProfileSecurityDialog.show(context);
               },
             ),
             ListTile(

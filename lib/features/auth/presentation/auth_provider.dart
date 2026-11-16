@@ -1,4 +1,4 @@
-﻿import "dart:async";
+import "dart:async";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:supabase_flutter/supabase_flutter.dart";
 import "../data/auth_repository.dart";
@@ -228,6 +228,60 @@ class AuthNotifier extends Notifier<UserAuthState> {
       return true;
     } catch (_) {
       return false;
+    }
+  }
+
+  Future<({bool success, String message})> verifyAndChangeCredentials({
+    required String oldPassword,
+    String? newPassword,
+    String? newFullName,
+  }) async {
+    final repo = ref.read(authRepositoryProvider);
+    final email = state.email ?? "admin@smart.com";
+
+    // 1. Verify old password
+    final isOldPasswordValid = await repo.verifyCurrentPassword(
+      email: email,
+      password: oldPassword,
+    );
+
+    if (!isOldPasswordValid) {
+      return (
+        success: false,
+        message: "Incorrect old password. Verification failed!",
+      );
+    }
+
+    // 2. Validate new password length if provided
+    if (newPassword != null && newPassword.isNotEmpty && newPassword.length < 6) {
+      return (
+        success: false,
+        message: "Password must be at least 6 characters!",
+      );
+    }
+
+    // 3. Update credentials
+    try {
+      await repo.updateCredentials(
+        email: email,
+        newPassword: newPassword,
+        newFullName: newFullName,
+      );
+
+      // Update in-memory state with new name if provided
+      if (newFullName != null && newFullName.trim().isNotEmpty) {
+        state = state.copyWith(fullName: newFullName.trim());
+      }
+
+      return (
+        success: true,
+        message: "Profile & Password updated successfully!",
+      );
+    } catch (e) {
+      return (
+        success: false,
+        message: "Update failed: ${e.toString().replaceAll("Exception: ", "")}",
+      );
     }
   }
 }
