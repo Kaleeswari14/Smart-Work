@@ -1,11 +1,10 @@
-import "package:flutter/foundation.dart";
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
-import "package:url_launcher/url_launcher.dart";
 import "../../../core/localization/app_localizations.dart";
 import "../../../shared/widgets/empty_state_view.dart";
 import "../../customers/presentation/customers_provider.dart";
 import "../../payments/presentation/payments_provider.dart";
+import "../../reports/presentation/pending_works_report_dialog.dart";
 import "../../reports/presentation/reports_provider.dart";
 import "../../works/presentation/works_provider.dart";
 import "main_shell_screen.dart";
@@ -72,7 +71,7 @@ class DashboardScreen extends ConsumerWidget {
                     value: "$pendingWorksCount Works",
                     icon: Icons.hourglass_top,
                     color: Colors.amber.shade900,
-                    onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(2),
+                    onTap: () => PendingWorksReportDialog.show(context),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -127,77 +126,6 @@ class DashboardScreen extends ConsumerWidget {
               color: Colors.red.shade700,
               onTap: () => ref.read(navigationIndexProvider.notifier).setIndex(3),
             ),
-
-            if (kIsWeb) ...[
-              const SizedBox(height: 14),
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [const Color(0xFF1E3A8A), Colors.blue.shade800],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.blue.withValues(alpha: 0.2),
-                      blurRadius: 6,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      padding: const EdgeInsets.all(7),
-                      decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.18),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Icon(Icons.android, color: Colors.white, size: 22),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            context.tr("download_apk"),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 13,
-                            ),
-                          ),
-                          Text(
-                            context.tr("download_apk_desc"),
-                            style: const TextStyle(color: Colors.white70, fontSize: 11),
-                          ),
-                        ],
-                      ),
-                    ),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.white,
-                        foregroundColor: const Color(0xFF1E3A8A),
-                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      icon: const Icon(Icons.download, size: 16),
-                      label: const Text(
-                        "APK",
-                        style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
-                      ),
-                      onPressed: () async {
-                        final uri = Uri.parse("smartiva.apk");
-                        if (await canLaunchUrl(uri)) {
-                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                        }
-                      },
-                    ),
-                  ],
-                ),
-              ),
-            ],
 
             const SizedBox(height: 20),
 

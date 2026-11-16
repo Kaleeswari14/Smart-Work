@@ -5,6 +5,7 @@ import "../../../shared/widgets/empty_state_view.dart";
 import "../../customers/presentation/customers_provider.dart";
 import "../../dashboard/presentation/main_shell_screen.dart";
 import "../../payments/data/pdf_invoice_service.dart";
+import "../../reports/presentation/pending_works_report_dialog.dart";
 import "works_provider.dart";
 
 class WorksScreen extends ConsumerStatefulWidget {
@@ -798,6 +799,21 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                     _buildFilterChip("completed", context.tr("status_completed")),
                     const SizedBox(width: 8),
                     _buildFilterChip("cancelled", context.tr("status_cancelled")),
+                    const SizedBox(width: 12),
+                    ActionChip(
+                      avatar: Icon(Icons.table_chart, size: 14, color: Colors.amber.shade900),
+                      backgroundColor: Colors.amber.shade50,
+                      side: BorderSide(color: Colors.amber.shade300),
+                      label: Text(
+                        context.tr("language_preference").contains("Tanglish") ? "Pending Report / Share" : "Nilaivai Arikkai",
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.amber.shade900,
+                        ),
+                      ),
+                      onPressed: () => PendingWorksReportDialog.show(context),
+                    ),
                   ],
                 ),
               ),
@@ -843,6 +859,11 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
     final isCompleted = work.status == "completed";
     final isCancelled = work.status == "cancelled";
 
+    final customers = ref.watch(customersListProvider);
+    final customer = customers.where((c) => c.id == work.customerId).firstOrNull;
+    final customerPhone = customer?.phone ?? "";
+    final customerAddress = customer?.address ?? "";
+
     return Card(
       margin: const EdgeInsets.only(bottom: 12.0),
       child: Padding(
@@ -850,76 +871,68 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Top Row: Customer Badge, View Icon, & Status Badge
+            // Top: Customer Name, Phone, and Customer Address
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(Icons.person, size: 14, color: Theme.of(context).colorScheme.primary),
-                        const SizedBox(width: 4),
-                        Flexible(
-                          child: Text(
-                            work.customerName,
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              color: Theme.of(context).colorScheme.primary,
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.primary.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(20),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.person, size: 14, color: Theme.of(context).colorScheme.primary),
+                            const SizedBox(width: 4),
+                            Flexible(
+                              child: Text(
+                                customerPhone.isNotEmpty ? "${work.customerName} ($customerPhone)" : work.customerName,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  color: Theme.of(context).colorScheme.primary,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
                             ),
-                            overflow: TextOverflow.ellipsis,
-                          ),
+                          ],
+                        ),
+                      ),
+                      if (customerAddress.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            Icon(Icons.location_on_outlined, size: 13, color: Colors.red.shade700),
+                            const SizedBox(width: 4),
+                            Expanded(
+                              child: Text(
+                                customerAddress,
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey.shade700,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
-                    ),
+                    ],
                   ),
-                ),
-                const SizedBox(width: 8),
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // 1. View Icon (Eye)
-                    IconButton(
-                      icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF1E3A8A)),
-                      tooltip: "View Details",
-                      padding: const EdgeInsets.all(4),
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      onPressed: () => _showWorkDetailsDialog(work),
-                    ),
-                    const SizedBox(width: 2),
-                    // 2. Edit Work Icon (Pencil)
-                    IconButton(
-                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0D9488)),
-                      tooltip: "Edit Work",
-                      padding: const EdgeInsets.all(4),
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      onPressed: () => _showEditWorkDialog(work),
-                    ),
-                    const SizedBox(width: 2),
-                    // 3. Delete Work Icon (Trash)
-                    IconButton(
-                      icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade700),
-                      tooltip: context.tr("delete_work"),
-                      padding: const EdgeInsets.all(4),
-                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
-                      onPressed: () => _confirmDeleteWork(work),
-                    ),
-                    const SizedBox(width: 4),
-                    // 4. Status Icon (Icon-only Dropdown)
-                    _buildStatusDropdown(work),
-                  ],
                 ),
               ],
             ),
             const SizedBox(height: 8),
 
-            // Work Title
+            // Work Title & Description (Problem & Scope)
             Text(
               work.title,
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
@@ -956,75 +969,8 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                 ),
               ),
             ],
-            const SizedBox(height: 8),
 
-            // Financial Summary
-            Row(
-              children: [
-                Text(
-                  "₹ ${work.totalCost.toStringAsFixed(2)}",
-                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                ),
-                const SizedBox(width: 8),
-                Text(
-                  "(Adv: ₹ ${work.advancePaid.toStringAsFixed(2)})",
-                  style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                ),
-              ],
-            ),
-
-            const Divider(height: 20),
-
-            // Middle Row: Auto Time & Duration + Manual Edit Button
-            Row(
-              children: [
-                Icon(
-                  Icons.timer,
-                  size: 18,
-                  color: isInProgress ? const Color(0xFF0D9488) : Colors.grey.shade700,
-                ),
-                const SizedBox(width: 6),
-                Text(
-                  "${context.tr("duration_spent")}: ",
-                  style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
-                ),
-                Text(
-                  work.formattedDuration,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.bold,
-                    color: isInProgress ? const Color(0xFF0D9488) : Colors.black87,
-                  ),
-                ),
-                if (isInProgress) ...[
-                  const SizedBox(width: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF0D9488).withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: const Text(
-                      "LIVE",
-                      style: TextStyle(
-                        fontSize: 9,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF0D9488),
-                      ),
-                    ),
-                  ),
-                ],
-                const Spacer(),
-                IconButton(
-                  icon: const Icon(Icons.timer_outlined, size: 18, color: Colors.blueGrey),
-                  tooltip: context.tr("edit_time"),
-                  padding: const EdgeInsets.all(4),
-                  constraints: const BoxConstraints(),
-                  onPressed: () => _showEditTimeDialog(work),
-                ),
-              ],
-            ),
-
+            // Billing Status if Completed
             if (isCompleted) ...[
               const SizedBox(height: 8),
               Container(
@@ -1082,7 +1028,6 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                         style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
                       ),
                       onPressed: () {
-                        // Payments Tab is index 3 in MainShellScreen!
                         ref.read(navigationIndexProvider.notifier).setIndex(3);
                       },
                     ),
@@ -1121,6 +1066,117 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                 ),
               ),
             ],
+
+            const SizedBox(height: 10),
+            const Divider(height: 1),
+            const SizedBox(height: 8),
+
+            // Bottom Action Row: Financials + Compact Timer on Left; Action Icons on Right
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                // Left: Financials & Compact Timer Chip
+                Flexible(
+                  child: Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: 8,
+                    runSpacing: 4,
+                    children: [
+                      Text(
+                        "₹ ${work.totalCost.toStringAsFixed(2)}",
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                      ),
+                      if (work.advancePaid > 0)
+                        Text(
+                          "(Adv: ₹ ${work.advancePaid.toStringAsFixed(2)})",
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                      // Compact Timer Chip (saves vertical space)
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+                        decoration: BoxDecoration(
+                          color: isInProgress
+                              ? const Color(0xFF0D9488).withValues(alpha: 0.12)
+                              : Colors.grey.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(6),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.timer_outlined,
+                              size: 13,
+                              color: isInProgress ? const Color(0xFF0D9488) : Colors.grey.shade700,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              work.formattedDuration,
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.bold,
+                                color: isInProgress ? const Color(0xFF0D9488) : Colors.grey.shade800,
+                              ),
+                            ),
+                            if (isInProgress) ...[
+                              const SizedBox(width: 4),
+                              const Text(
+                                "LIVE",
+                                style: TextStyle(
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF0D9488),
+                                ),
+                              ),
+                            ],
+                            const SizedBox(width: 4),
+                            InkWell(
+                              onTap: () => _showEditTimeDialog(work),
+                              child: const Icon(Icons.edit, size: 11, color: Colors.blueGrey),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Right: Action Icons (View, Edit, Delete, Status Dropdown)
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // 1. View Icon (Eye)
+                    IconButton(
+                      icon: const Icon(Icons.visibility_outlined, size: 18, color: Color(0xFF1E3A8A)),
+                      tooltip: "View Details",
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      onPressed: () => _showWorkDetailsDialog(work),
+                    ),
+                    const SizedBox(width: 2),
+                    // 2. Edit Work Icon (Pencil)
+                    IconButton(
+                      icon: const Icon(Icons.edit_outlined, size: 18, color: Color(0xFF0D9488)),
+                      tooltip: "Edit Work",
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      onPressed: () => _showEditWorkDialog(work),
+                    ),
+                    const SizedBox(width: 2),
+                    // 3. Delete Work Icon (Trash)
+                    IconButton(
+                      icon: Icon(Icons.delete_outline, size: 18, color: Colors.red.shade700),
+                      tooltip: context.tr("delete_work"),
+                      padding: const EdgeInsets.all(4),
+                      constraints: const BoxConstraints(minWidth: 28, minHeight: 28),
+                      onPressed: () => _confirmDeleteWork(work),
+                    ),
+                    const SizedBox(width: 4),
+                    // 4. Status Icon (Dropdown Menu)
+                    _buildStatusDropdown(work),
+                  ],
+                ),
+              ],
+            ),
           ],
         ),
       ),

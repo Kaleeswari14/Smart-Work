@@ -1,0 +1,438 @@
+import "package:flutter/material.dart";
+import "package:flutter/services.dart";
+import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:intl/intl.dart";
+import "package:pdf/pdf.dart";
+import "package:pdf/widgets.dart" as pw;
+import "package:printing/printing.dart";
+import "../../../core/localization/app_localizations.dart";
+import "../../../core/localization/language_provider.dart";
+import "../../customers/presentation/customers_provider.dart";
+import "../../works/presentation/works_provider.dart";
+
+class PendingWorksReportDialog extends ConsumerWidget {
+  const PendingWorksReportDialog({super.key});
+
+  static Future<void> show(BuildContext context) {
+    return showDialog<void>(
+      context: context,
+      builder: (ctx) => const PendingWorksReportDialog(),
+    );
+  }
+
+  Future<void> _sharePdf(
+    BuildContext context,
+    List<WorkItem> pendingWorks,
+    List<CustomerItem> customers,
+  ) async {
+    try {
+      final pdf = pw.Document();
+      final dateFormat = DateFormat("dd MMM yyyy, hh:mm a");
+      final currentDateStr = dateFormat.format(DateTime.now());
+
+      pdf.addPage(
+        pw.MultiPage(
+          pageFormat: PdfPageFormat.a4.landscape,
+          margin: const pw.EdgeInsets.all(24),
+          build: (pw.Context ctx) {
+            return [
+              // Header
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Text(
+                        "SMARTIVA TECHNOLOGIES",
+                        style: pw.TextStyle(
+                          fontSize: 20,
+                          fontWeight: pw.FontWeight.bold,
+                          color: PdfColor.fromHex("#1E3A8A"),
+                        ),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Text(
+                        "Pending Works & Customer Details Report",
+                        style: const pw.TextStyle(fontSize: 11, color: PdfColors.grey700),
+                      ),
+                    ],
+                  ),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text(
+                        "Date: $currentDateStr",
+                        style: const pw.TextStyle(fontSize: 10, color: PdfColors.grey700),
+                      ),
+                      pw.SizedBox(height: 2),
+                      pw.Container(
+                        padding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                        decoration: pw.BoxDecoration(
+                          color: PdfColor.fromHex("#FFFBEB"),
+                          borderRadius: pw.BorderRadius.circular(4),
+                          border: pw.Border.all(color: PdfColor.fromHex("#F59E0B")),
+                        ),
+                        child: pw.Text(
+                          "Total Pending: ${pendingWorks.length}",
+                          style: pw.TextStyle(
+                            fontSize: 10,
+                            fontWeight: pw.FontWeight.bold,
+                            color: PdfColor.fromHex("#B45309"),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              pw.SizedBox(height: 16),
+
+              // Table
+              pw.TableHelper.fromTextArray(
+                headers: ["#", "Customer Name", "Phone", "Customer Address", "Problem / Scope", "Agreed Cost", "Advance Paid"],
+                headerStyle: pw.TextStyle(
+                  fontWeight: pw.FontWeight.bold,
+                  color: PdfColors.white,
+                  fontSize: 10,
+                ),
+                headerDecoration: pw.BoxDecoration(
+                  color: PdfColor.fromHex("#1E3A8A"),
+                ),
+                cellStyle: const pw.TextStyle(fontSize: 9),
+                cellPadding: const pw.EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                data: List<List<String>>.generate(pendingWorks.length, (index) {
+                  final work = pendingWorks[index];
+                  final customer = customers.where((c) => c.id == work.customerId).firstOrNull;
+                  final phone = customer?.phone.isNotEmpty == true ? customer!.phone : "-";
+                  final address = customer?.address.isNotEmpty == true ? customer!.address : "-";
+                  final problem = work.description.isNotEmpty
+                      ? "${work.title}\n(${work.description})"
+                      : work.title;
+                  return [
+                    "${index + 1}",
+                    work.customerName,
+                    phone,
+                    address,
+                    problem,
+                    "₹ ${work.totalCost.toStringAsFixed(2)}",
+                    "₹ ${work.advancePaid.toStringAsFixed(2)}",
+                  ];
+                }),
+              ),
+              pw.SizedBox(height: 16),
+              pw.Text(
+                "Generated by Smartiva Work Management System",
+                style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey500),
+              ),
+            ];
+          },
+        ),
+      );
+
+      final Uint8List pdfBytes = await pdf.save();
+      await Printing.sharePdf(
+        bytes: pdfBytes,
+        filename: "Smartiva_Pending_Works_Report_${DateFormat('yyyyMMdd').format(DateTime.now())}.pdf",
+      );
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text("Error sharing PDF: $e"), backgroundColor: Colors.red),
+        );
+      }
+    }
+  }
+
+  void _copyTextReport(
+    BuildContext context,
+    List<WorkItem> pendingWorks,
+    List<CustomerItem> customers,
+  ) {
+    final buffer = StringBuffer();
+    final dateFormat = DateFormat("dd-MM-yyyy hh:mm a");
+    buffer.writeln("📋 SMARTIVA - PENDING WORKS REPORT");
+    buffer.writeln("Date: ${dateFormat.format(DateTime.now())}");
+    buffer.writeln("Total Pending: ${pendingWorks.length} Works\n");
+    buffer.writeln("----------------------------------------");
+
+    for (int i = 0; i < pendingWorks.length; i++) {
+      final work = pendingWorks[i];
+      final customer = customers.where((c) => c.id == work.customerId).firstOrNull;
+      final phone = customer?.phone.isNotEmpty == true ? customer!.phone : "N/A";
+      final address = customer?.address.isNotEmpty == true ? customer!.address : "N/A";
+
+      buffer.writeln("${i + 1}. Customer: ${work.customerName}");
+      buffer.writeln("   📞 Phone: $phone");
+      buffer.writeln("   📍 Address: $address");
+      buffer.writeln("   🔧 Problem/Work: ${work.title}");
+      if (work.description.isNotEmpty) {
+        buffer.writeln("   📝 Scope: ${work.description}");
+      }
+      buffer.writeln("   💰 Cost: ₹${work.totalCost.toStringAsFixed(2)} (Adv: ₹${work.advancePaid.toStringAsFixed(2)})");
+      buffer.writeln("----------------------------------------");
+    }
+
+    Clipboard.setData(ClipboardData(text: buffer.toString()));
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: const Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                "Pending report copied to clipboard! Ready to share on WhatsApp.",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+        backgroundColor: const Color(0xFF0D9488),
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final works = ref.watch(worksListProvider);
+    final customers = ref.watch(customersListProvider);
+    final isTanglish = ref.watch(languageProvider).languageCode == "ta";
+
+    final pendingWorks = works.where((w) => w.status == "pending").toList();
+
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 850,
+        constraints: BoxConstraints(
+          maxHeight: MediaQuery.of(context).size.height * 0.85,
+        ),
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Header
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(
+                        color: Colors.amber.shade100,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                      child: Icon(Icons.table_chart, color: Colors.amber.shade900, size: 24),
+                    ),
+                    const SizedBox(width: 12),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          isTanglish ? "Nilaivai Velaigal Arikkai" : "Pending Works Details Report",
+                          style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        Text(
+                          "${pendingWorks.length} ${isTanglish ? "Velaigal Nilaivaiyil Ullaana" : "Works Currently Pending"}",
+                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+                IconButton(
+                  icon: const Icon(Icons.close),
+                  onPressed: () => Navigator.of(context).pop(),
+                ),
+              ],
+            ),
+            const Divider(height: 24),
+
+            // Content
+            Expanded(
+              child: pendingWorks.isEmpty
+                  ? Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.check_circle_outline, size: 48, color: Colors.green.shade400),
+                          const SizedBox(height: 12),
+                          Text(
+                            isTanglish ? "Tharpodhu Nilaivai Velaigal Edhum Illai!" : "No pending works at the moment!",
+                            style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            isTanglish ? "Ella velaigalum live alladhu mudinthuvittana." : "All works are either in progress or completed.",
+                            style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                          ),
+                        ],
+                      ),
+                    )
+                  : Scrollbar(
+                      thumbVisibility: true,
+                      child: SingleChildScrollView(
+                        scrollDirection: Axis.vertical,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: DataTable(
+                            headingRowColor: WidgetStateProperty.all(
+                              const Color(0xFF1E3A8A).withValues(alpha: 0.08),
+                            ),
+                            headingTextStyle: const TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 13,
+                              color: Color(0xFF1E3A8A),
+                            ),
+                            dataRowMinHeight: 48,
+                            dataRowMaxHeight: 70,
+                            columns: const [
+                              DataColumn(label: Text("#")),
+                              DataColumn(label: Text("Customer")),
+                              DataColumn(label: Text("Phone")),
+                              DataColumn(label: Text("Address")),
+                              DataColumn(label: Text("Problem / Scope")),
+                              DataColumn(label: Text("Agreed Cost")),
+                            ],
+                            rows: List<DataRow>.generate(pendingWorks.length, (index) {
+                              final work = pendingWorks[index];
+                              final customer = customers.where((c) => c.id == work.customerId).firstOrNull;
+                              final phone = customer?.phone.isNotEmpty == true ? customer!.phone : "-";
+                              final address = customer?.address.isNotEmpty == true ? customer!.address : "-";
+
+                              return DataRow(
+                                color: WidgetStateProperty.resolveWith<Color?>(
+                                  (Set<WidgetState> states) {
+                                    return index.isEven ? Colors.grey.shade50 : null;
+                                  },
+                                ),
+                                cells: [
+                                  DataCell(Text("${index + 1}", style: const TextStyle(fontWeight: FontWeight.bold))),
+                                  DataCell(
+                                    Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        CircleAvatar(
+                                          radius: 12,
+                                          backgroundColor: const Color(0xFF1E3A8A).withValues(alpha: 0.1),
+                                          child: Text(
+                                            work.customerName.isNotEmpty ? work.customerName[0].toUpperCase() : "C",
+                                            style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Color(0xFF1E3A8A)),
+                                          ),
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Text(work.customerName, style: const TextStyle(fontWeight: FontWeight.w600)),
+                                      ],
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Text(phone, style: TextStyle(color: Colors.blue.shade900, fontWeight: FontWeight.w500)),
+                                  ),
+                                  DataCell(
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 180),
+                                      child: Text(
+                                        address,
+                                        style: TextStyle(fontSize: 12, color: Colors.grey.shade800),
+                                        maxLines: 2,
+                                        overflow: TextOverflow.ellipsis,
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    ConstrainedBox(
+                                      constraints: const BoxConstraints(maxWidth: 220),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        mainAxisAlignment: MainAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            work.title,
+                                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
+                                          ),
+                                          if (work.description.isNotEmpty)
+                                            Text(
+                                              work.description,
+                                              style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                              maxLines: 1,
+                                              overflow: TextOverflow.ellipsis,
+                                            ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                  DataCell(
+                                    Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                        Text(
+                                          "₹ ${work.totalCost.toStringAsFixed(2)}",
+                                          style: const TextStyle(fontWeight: FontWeight.bold),
+                                        ),
+                                        if (work.advancePaid > 0)
+                                          Text(
+                                            "(Adv: ₹ ${work.advancePaid.toStringAsFixed(2)})",
+                                            style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                                          ),
+                                      ],
+                                    ),
+                                  ),
+                                ],
+                              );
+                            }),
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+            const Divider(height: 24),
+
+            // Actions bar
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: Text(context.tr("close")),
+                ),
+                if (pendingWorks.isNotEmpty)
+                  Row(
+                    children: [
+                      OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: const Color(0xFF0D9488),
+                          side: const BorderSide(color: Color(0xFF0D9488)),
+                          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.copy, size: 16),
+                        label: Text(isTanglish ? "Text / WhatsApp Copy" : "Copy for WhatsApp"),
+                        onPressed: () => _copyTextReport(context, pendingWorks, customers),
+                      ),
+                      const SizedBox(width: 10),
+                      ElevatedButton.icon(
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFF1E3A8A),
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        ),
+                        icon: const Icon(Icons.share, size: 16),
+                        label: Text(isTanglish ? "PDF Share / Print" : "Share PDF Table"),
+                        onPressed: () => _sharePdf(context, pendingWorks, customers),
+                      ),
+                    ],
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
