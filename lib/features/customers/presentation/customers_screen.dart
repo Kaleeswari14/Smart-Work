@@ -537,12 +537,14 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
     final customers = ref.watch(customersListProvider);
     final works = ref.watch(worksListProvider);
 
-    final filteredCustomers = _searchController.text.isEmpty
+    final searchQuery = _searchController.text.trim().toLowerCase();
+    final filteredCustomers = searchQuery.isEmpty
         ? customers
         : customers
             .where((c) =>
-                c.name.toLowerCase().contains(_searchController.text.toLowerCase()) ||
-                c.phone.contains(_searchController.text))
+                c.name.toLowerCase().contains(searchQuery) ||
+                c.phone.contains(searchQuery) ||
+                c.address.toLowerCase().contains(searchQuery))
             .toList();
 
     return Stack(

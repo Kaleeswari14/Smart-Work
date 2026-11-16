@@ -86,10 +86,10 @@ void main() {
     await tester.tap(addCustomerBtn);
     await tester.pumpAndSettle();
 
-    // Fill customer form (using TextField indices)
+    // Fill customer form (using TextField indices: at(0) is screen search, at(1) is Name, at(2) is Phone)
     final textFields = find.byType(TextField);
-    await tester.enterText(textFields.at(0), "Ramesh");
-    await tester.enterText(textFields.at(1), "9876543210");
+    await tester.enterText(textFields.at(1), "Ramesh");
+    await tester.enterText(textFields.at(2), "9876543210");
     await tester.pumpAndSettle();
 
     final saveCustomerBtn = find.widgetWithText(ElevatedButton, "Save").first;
@@ -109,7 +109,9 @@ void main() {
     await tester.pumpAndSettle();
 
     final workFields = find.byType(TextField);
-    // Index 0 is the customer search field (already defaulted to Ramesh)
+    await tester.enterText(workFields.at(0), "Ramesh");
+    await tester.pumpAndSettle();
+
     await tester.enterText(workFields.at(1), "Engine Overhaul");
     await tester.enterText(workFields.at(2), "Full servicing of engine");
     await tester.enterText(workFields.at(3), "5000");
@@ -117,6 +119,7 @@ void main() {
     await tester.pumpAndSettle();
 
     final saveWorkBtn = find.widgetWithText(ElevatedButton, "Save").first;
+    await tester.ensureVisible(saveWorkBtn);
     await tester.tap(saveWorkBtn);
     await tester.pumpAndSettle();
 

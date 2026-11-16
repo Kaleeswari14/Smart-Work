@@ -357,8 +357,8 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
       return;
     }
 
-    String selectedCustomerId = customers.first.id;
-    String selectedCustomerName = customers.first.name;
+    String selectedCustomerId = "";
+    String selectedCustomerName = "";
     final titleController = TextEditingController();
     final descController = TextEditingController();
     final costController = TextEditingController();
@@ -402,11 +402,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
 
                     // Customer Selector: Manual Type + Automatic Dropdown Search
                     RawAutocomplete<CustomerItem>(
-                      initialValue: TextEditingValue(
-                        text: customers.first.phone.isNotEmpty
-                            ? "${customers.first.name} (${customers.first.phone})"
-                            : customers.first.name,
-                      ),
+                      initialValue: const TextEditingValue(text: ""),
                       displayStringForOption: (CustomerItem c) =>
                           c.phone.isNotEmpty ? "${c.name} (${c.phone})" : c.name,
                       optionsBuilder: (TextEditingValue textEditingValue) {
@@ -415,7 +411,9 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                         }
                         final q = textEditingValue.text.toLowerCase();
                         return customers.where((c) =>
-                            c.name.toLowerCase().contains(q) || c.phone.contains(q));
+                            c.name.toLowerCase().contains(q) ||
+                            c.phone.contains(q) ||
+                            c.address.toLowerCase().contains(q));
                       },
                       onSelected: (CustomerItem selection) {
                         setModalState(() {
@@ -430,7 +428,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                           focusNode: focusNode,
                           decoration: InputDecoration(
                             labelText: context.tr("select_customer"),
-                            hintText: "Type customer name or phone...",
+                            hintText: "Search Name, Phone, or Address...",
                             prefixIcon: const Icon(Icons.person_search_outlined),
                             suffixIcon: IconButton(
                               icon: const Icon(Icons.arrow_drop_down),
@@ -443,9 +441,12 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                             ),
                           ),
                           onChanged: (val) {
+                            final query = val.trim().toLowerCase();
                             final match = customers.where((c) =>
-                                c.name.toLowerCase() == val.trim().toLowerCase() ||
-                                c.phone == val.trim()).firstOrNull;
+                                c.name.toLowerCase() == query ||
+                                c.phone == val.trim() ||
+                                (c.address.isNotEmpty &&
+                                    c.address.toLowerCase().contains(query))).firstOrNull;
                             if (match != null) {
                               setModalState(() {
                                 selectedCustomerId = match.id;
@@ -464,7 +465,7 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                             color: Colors.white,
                             child: ConstrainedBox(
                               constraints: BoxConstraints(
-                                maxHeight: 200,
+                                maxHeight: 220,
                                 maxWidth: MediaQuery.of(context).size.width - 40,
                               ),
                               child: ListView.separated(
@@ -475,6 +476,10 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                                 itemBuilder: (BuildContext context, int index) {
                                   final CustomerItem c = options.elementAt(index);
                                   final isSelected = c.id == selectedCustomerId;
+                                  final detailsList = [
+                                    if (c.phone.isNotEmpty) c.phone,
+                                    if (c.address.isNotEmpty) c.address,
+                                  ];
                                   return ListTile(
                                     dense: true,
                                     selected: isSelected,
@@ -500,13 +505,15 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                                         fontSize: 13,
                                       ),
                                     ),
-                                    subtitle: c.phone.isNotEmpty
+                                    subtitle: detailsList.isNotEmpty
                                         ? Text(
-                                            c.phone,
+                                            detailsList.join(" • "),
                                             style: TextStyle(
                                               fontSize: 11,
                                               color: Colors.grey.shade600,
                                             ),
+                                            maxLines: 1,
+                                            overflow: TextOverflow.ellipsis,
                                           )
                                         : null,
                                     onTap: () {
@@ -567,6 +574,15 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
                     const SizedBox(height: 20),
                     ElevatedButton(
                       onPressed: () {
+                        if (selectedCustomerId.isEmpty) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Text("Customer-ai select seiyavum (Please select a customer)."),
+                              backgroundColor: Colors.orange,
+                            ),
+                          );
+                          return;
+                        }
                         final title = titleController.text.trim();
                         if (title.isNotEmpty) {
                           final cost = double.tryParse(costController.text) ?? 0.0;
