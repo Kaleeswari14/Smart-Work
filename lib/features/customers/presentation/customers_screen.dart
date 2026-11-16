@@ -1,4 +1,5 @@
 import "package:flutter/material.dart";
+import "package:flutter/services.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "../../../core/localization/app_localizations.dart";
 import "../../../shared/widgets/empty_state_view.dart";
@@ -272,9 +273,15 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
               TextField(
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
                 decoration: InputDecoration(
                   labelText: context.tr("phone_number"),
                   prefixIcon: const Icon(Icons.phone_outlined),
+                  hintText: "10-digit mobile number",
                 ),
               ),
               const SizedBox(height: 12),
@@ -300,15 +307,28 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                 onPressed: () {
                   final name = nameController.text.trim();
                   final phone = phoneController.text.trim();
-                  if (name.isNotEmpty) {
-                    ref.read(customersListProvider.notifier).addCustomer(
-                          name: name,
-                          phone: phone,
-                          email: emailController.text.trim(),
-                          address: addressController.text.trim(),
-                        );
-                    Navigator.pop(ctx);
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Customer name is required.")),
+                    );
+                    return;
                   }
+                  if (phone.isNotEmpty && phone.length != 10) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Phone number sariyaaga 10 digits irukka vendum (Must be 10 digits)."),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                  ref.read(customersListProvider.notifier).addCustomer(
+                        name: name,
+                        phone: phone,
+                        email: emailController.text.trim(),
+                        address: addressController.text.trim(),
+                      );
+                  Navigator.pop(ctx);
                 },
                 child: Text(context.tr("save")),
               ),
@@ -368,9 +388,15 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
               TextField(
                 controller: phoneController,
                 keyboardType: TextInputType.phone,
+                maxLength: 10,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(10),
+                ],
                 decoration: InputDecoration(
                   labelText: context.tr("phone_number"),
                   prefixIcon: const Icon(Icons.phone_outlined),
+                  hintText: "10-digit mobile number",
                 ),
               ),
               const SizedBox(height: 12),
@@ -399,17 +425,31 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                 ),
                 onPressed: () {
                   final name = nameController.text.trim();
-                  if (name.isNotEmpty) {
-                    ref.read(customersListProvider.notifier).updateCustomer(
-                          customer.copyWith(
-                            name: name,
-                            phone: phoneController.text.trim(),
-                            email: emailController.text.trim(),
-                            address: addressController.text.trim(),
-                          ),
-                        );
-                    Navigator.pop(ctx);
+                  final phone = phoneController.text.trim();
+                  if (name.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("Customer name is required.")),
+                    );
+                    return;
                   }
+                  if (phone.isNotEmpty && phone.length != 10) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("Phone number sariyaaga 10 digits irukka vendum (Must be 10 digits)."),
+                        backgroundColor: Colors.red,
+                      ),
+                    );
+                    return;
+                  }
+                  ref.read(customersListProvider.notifier).updateCustomer(
+                        customer.copyWith(
+                          name: name,
+                          phone: phone,
+                          email: emailController.text.trim(),
+                          address: addressController.text.trim(),
+                        ),
+                      );
+                  Navigator.pop(ctx);
                 },
                 child: Text(context.tr("save")),
               ),
