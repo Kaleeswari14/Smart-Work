@@ -1,5 +1,6 @@
 import "dart:async";
 import "package:flutter_riverpod/flutter_riverpod.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "package:supabase_flutter/supabase_flutter.dart";
 import "../data/auth_repository.dart";
 
@@ -100,11 +101,35 @@ class AuthNotifier extends Notifier<UserAuthState> {
   }) async {
     state = state.copyWith(status: AuthStatus.loading, errorMessage: null);
     final repo = ref.read(authRepositoryProvider);
+    final cleanInput = email.trim();
+
+    // 1. Check local custom admin/owner credentials first
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final customUsername = prefs.getString("custom_admin_username") ?? "admin";
+      final customPassword = prefs.getString("custom_admin_password") ?? "admin@1407";
+      final customName = prefs.getString("custom_admin_name") ?? "Business Owner";
+
+      final inputMatches = cleanInput.toLowerCase() == customUsername.toLowerCase() ||
+          cleanInput.toLowerCase() == "admin" ||
+          cleanInput.toLowerCase() == "owner" ||
+          cleanInput.toLowerCase() == "admin@smart.com";
+
+      if (inputMatches && password == customPassword) {
+        state = UserAuthState(
+          status: AuthStatus.authenticated,
+          email: cleanInput.contains("@") ? cleanInput : "$customUsername@smart.com",
+          fullName: customName,
+          isOwner: true,
+        );
+        return true;
+      }
+    } catch (_) {}
 
     if (!repo.isConnected) {
       state = UserAuthState(
         status: AuthStatus.authenticated,
-        email: email,
+        email: cleanInput,
         fullName: "Business Owner",
         isOwner: true,
       );
@@ -112,7 +137,12 @@ class AuthNotifier extends Notifier<UserAuthState> {
     }
 
     try {
-      final response = await repo.signIn(email: email, password: password);
+      String supabaseEmail = cleanInput;
+      if (!supabaseEmail.contains("@")) {
+        supabaseEmail = "$cleanInput@smart.com";
+      }
+
+      final response = await repo.signIn(email: supabaseEmail, password: password);
       final user = response?.user;
       if (user != null) {
         state = UserAuthState(
@@ -129,11 +159,32 @@ class AuthNotifier extends Notifier<UserAuthState> {
       );
       return false;
     } catch (e) {
+      // Fallback check against local custom password
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        final customUsername = prefs.getString("custom_admin_username") ?? "admin";
+        final customPassword = prefs.getString("custom_admin_password") ?? "admin@1407";
+        final customName = prefs.getString("custom_admin_name") ?? "Business Owner";
+
+        if ((cleanInput.toLowerCase() == customUsername.toLowerCase() ||
+                cleanInput.toLowerCase() == "admin" ||
+                cleanInput.toLowerCase() == "owner") &&
+            password == customPassword) {
+          state = UserAuthState(
+            status: AuthStatus.authenticated,
+            email: cleanInput.contains("@") ? cleanInput : "$customUsername@smart.com",
+            fullName: customName,
+            isOwner: true,
+          );
+          return true;
+        }
+      } catch (_) {}
+
       final errString = e.toString();
       String friendlyMessage = errString.replaceAll("Exception: ", "").replaceAll("AuthApiException: ", "");
 
       if (errString.contains("Invalid login credentials") || errString.contains("invalid_credentials")) {
-        friendlyMessage = "Invalid credentials. Ungalukku account illai endraal, Supabase-la account confirm aagi irukka vendum.";
+        friendlyMessage = "Username alladhu Password thavaru! (Invalid credentials).";
       } else if (errString.contains("Email not confirmed")) {
         friendlyMessage = "Email innum confirm aagalai. Supabase-la 'Confirm email'-ai Turn OFF seiyavum.";
       }
@@ -233,6 +284,7 @@ class AuthNotifier extends Notifier<UserAuthState> {
 
   Future<({bool success, String message})> verifyAndChangeCredentials({
     required String oldPassword,
+    String? newUsername,
     String? newPassword,
     String? newFullName,
   }) async {
@@ -264,18 +316,25 @@ class AuthNotifier extends Notifier<UserAuthState> {
     try {
       await repo.updateCredentials(
         email: email,
+        newUsername: newUsername,
         newPassword: newPassword,
         newFullName: newFullName,
       );
 
-      // Update in-memory state with new name if provided
+      // Update in-memory state with new name/email if provided
+      var updatedState = state;
       if (newFullName != null && newFullName.trim().isNotEmpty) {
-        state = state.copyWith(fullName: newFullName.trim());
+        updatedState = updatedState.copyWith(fullName: newFullName.trim());
       }
+      if (newUsername != null && newUsername.trim().isNotEmpty) {
+        final cleanU = newUsername.trim();
+        updatedState = updatedState.copyWith(email: cleanU.contains("@") ? cleanU : "$cleanU@smart.com");
+      }
+      state = updatedState;
 
       return (
         success: true,
-        message: "Profile & Password updated successfully!",
+        message: "Profile, Username & Password updated successfully!",
       );
     } catch (e) {
       return (

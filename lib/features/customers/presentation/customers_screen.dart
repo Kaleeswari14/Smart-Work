@@ -365,6 +365,29 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                     );
                     return;
                   }
+
+                  final existingList = ref.read(customersListProvider);
+                  final isDuplicatePhone = phone.isNotEmpty && existingList.any((c) => c.phone.trim() == phone);
+                  if (isDuplicatePhone) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("Indha Phone Number ($phone) already vera customer-kku irukku! Duplicate allow seiya mudiyadhu."),
+                        backgroundColor: Colors.red.shade700,
+                      ),
+                    );
+                    return;
+                  }
+                  final isDuplicateName = existingList.any((c) => c.name.trim().toLowerCase() == name.toLowerCase());
+                  if (isDuplicateName) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("'$name' endra customer name already irukku! Duplicate customer allow seiya mudiyadhu."),
+                        backgroundColor: Colors.red.shade700,
+                      ),
+                    );
+                    return;
+                  }
+
                   ref.read(customersListProvider.notifier).addCustomer(
                         name: name,
                         phone: phone,
@@ -484,6 +507,32 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                     );
                     return;
                   }
+
+                  final existingList = ref.read(customersListProvider);
+                  if (phone.isNotEmpty) {
+                    final isDuplicatePhone = existingList.any((c) => c.id != customer.id && c.phone.trim() == phone);
+                    if (isDuplicatePhone) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text("Intha phone number ($phone) matroru customer-ku already irukku!"),
+                          backgroundColor: Colors.red.shade700,
+                        ),
+                      );
+                      return;
+                    }
+                  }
+
+                  final isDuplicateName = existingList.any((c) => c.id != customer.id && c.name.trim().toLowerCase() == name.toLowerCase());
+                  if (isDuplicateName) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text("'$name' endra customer name already irukku! Duplicate customer allow seiya mudiyadhu."),
+                        backgroundColor: Colors.red.shade700,
+                      ),
+                    );
+                    return;
+                  }
+
                   ref.read(customersListProvider.notifier).updateCustomer(
                         customer.copyWith(
                           name: name,

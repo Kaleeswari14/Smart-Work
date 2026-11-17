@@ -270,7 +270,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       keyboardType: TextInputType.emailAddress,
                       decoration: InputDecoration(
                         labelText: context.tr("username_label"),
-                        prefixIcon: const Icon(Icons.email_outlined),
+                        hintText: "admin or email",
+                        prefixIcon: const Icon(Icons.person_outline),
                       ),
                     ),
                     const SizedBox(height: 14),

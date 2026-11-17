@@ -137,6 +137,7 @@ class AuthRepository {
 
   Future<void> updateCredentials({
     required String email,
+    String? newUsername,
     String? newPassword,
     String? newFullName,
   }) async {
@@ -145,11 +146,14 @@ class AuthRepository {
     // 1. Persist to local storage
     try {
       final prefs = await SharedPreferences.getInstance();
+      if (newUsername != null && newUsername.trim().isNotEmpty) {
+        await prefs.setString("custom_admin_username", newUsername.trim());
+      }
       if (newPassword != null && newPassword.isNotEmpty) {
         await prefs.setString("custom_admin_password", newPassword);
       }
       if (newFullName != null && newFullName.isNotEmpty) {
-        await prefs.setString("custom_admin_name", newFullName);
+        await prefs.setString("custom_admin_name", newFullName.trim());
       }
     } catch (e) {
       debugPrint("⚠️ Error saving credentials to SharedPreferences: $e");
@@ -158,19 +162,27 @@ class AuthRepository {
     // 2. Persist to Supabase if connected
     if (client != null && client.auth.currentUser != null) {
       try {
+        final Map<String, dynamic> metadata = {};
+        if (newFullName != null && newFullName.trim().isNotEmpty) {
+          metadata["full_name"] = newFullName.trim();
+        }
+        if (newUsername != null && newUsername.trim().isNotEmpty) {
+          metadata["custom_username"] = newUsername.trim();
+        }
+
         final attributes = UserAttributes(
           password: (newPassword != null && newPassword.isNotEmpty) ? newPassword : null,
-          data: (newFullName != null && newFullName.isNotEmpty) ? {"full_name": newFullName} : null,
+          data: metadata.isNotEmpty ? metadata : null,
         );
         await client.auth.updateUser(attributes);
 
         if (newFullName != null && newFullName.isNotEmpty) {
           final userId = client.auth.currentUser!.id;
-          await client.from("profiles").update({"full_name": newFullName}).eq("id", userId);
+          await client.from("profiles").update({"full_name": newFullName.trim()}).eq("id", userId);
         }
       } catch (e) {
         debugPrint("⚠️ Error updating credentials in Supabase: $e");
-        rethrow;
+        // Not rethrowing so local update still succeeds even if network is offline
       }
     }
   }

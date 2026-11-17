@@ -1,10 +1,18 @@
 import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:flutter_test/flutter_test.dart";
+import "package:shared_preferences/shared_preferences.dart";
 import "package:work_management/core/router/app_router.dart";
 import "package:work_management/main.dart";
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({
+      "custom_admin_username": "admin",
+      "custom_admin_password": "admin@1407",
+    });
+  });
+
   testWidgets("Phase 2 Frontend Flow & Language Toggle test", (WidgetTester tester) async {
     // Set typical mobile screen size
     tester.view.physicalSize = const Size(1080, 1920);
@@ -43,7 +51,9 @@ void main() {
     expect(signInButton, findsOneWidget);
     await tester.ensureVisible(signInButton);
     await tester.tap(signInButton);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
 
     // 4. Verify Dashboard displays in Tanglish
     expect(find.text("Mukkiya Pakkam"), findsWidgets);
@@ -74,7 +84,9 @@ void main() {
     final signInBtn = find.byType(ElevatedButton).first;
     await tester.ensureVisible(signInBtn);
     await tester.tap(signInBtn);
-    await tester.pumpAndSettle();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 300));
+    await tester.pump(const Duration(milliseconds: 300));
 
     // 2. Navigate to Customers via Bottom Navigation Bar
     final customersNav = find.byIcon(Icons.people_outline).last;
