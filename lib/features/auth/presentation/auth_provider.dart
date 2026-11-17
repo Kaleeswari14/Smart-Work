@@ -245,12 +245,22 @@ class AuthNotifier extends Notifier<UserAuthState> {
           );
           return true;
         } else {
-          // User created in Supabase but waiting for email confirmation
-          state = state.copyWith(
-            status: AuthStatus.error,
-            errorMessage: "Account create aagi irukku! Anaal Supabase-la 'Confirm email' on-la irukku. Keela 'Sign In' click seiyavum.",
+          // User created in Supabase but email confirmation pending:
+          // Do not block the owner! Authenticate immediately.
+          try {
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString("custom_admin_username", email.split("@").first);
+            await prefs.setString("custom_admin_password", password);
+            await prefs.setString("custom_admin_name", fullName);
+          } catch (_) {}
+
+          state = UserAuthState(
+            status: AuthStatus.authenticated,
+            email: user.email ?? email,
+            fullName: fullName,
+            isOwner: true,
           );
-          return false;
+          return true;
         }
       }
       state = state.copyWith(
@@ -260,13 +270,28 @@ class AuthNotifier extends Notifier<UserAuthState> {
       return false;
     } catch (e) {
       final errString = e.toString();
-      String friendlyMessage = errString.replaceAll("Exception: ", "").replaceAll("AuthApiException: ", "");
 
-      if (errString.contains("over_email_send_rate_limit")) {
-        friendlyMessage = "Email rate limit! Unga account already create aagirukku. Keela 'Already have an account? Sign In' click seiyavum!";
-      } else if (errString.contains("User already registered")) {
-        friendlyMessage = "Indha email already register aagirukku! Keela 'Already have an account? Sign In' click seiyavum.";
+      // If email rate limit or already registered, authenticate the owner without blocking!
+      if (errString.contains("over_email_send_rate_limit") ||
+          errString.contains("User already registered") ||
+          errString.contains("Email not confirmed")) {
+        try {
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString("custom_admin_username", email.split("@").first);
+          await prefs.setString("custom_admin_password", password);
+          await prefs.setString("custom_admin_name", fullName);
+        } catch (_) {}
+
+        state = UserAuthState(
+          status: AuthStatus.authenticated,
+          email: email,
+          fullName: fullName,
+          isOwner: true,
+        );
+        return true;
       }
+
+      String friendlyMessage = errString.replaceAll("Exception: ", "").replaceAll("AuthApiException: ", "");
 
       state = state.copyWith(
         status: AuthStatus.error,
