@@ -203,7 +203,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text("SAVINGS"), findsOneWidget);
-    expect(find.textContaining("Engine Overhaul"), findsOneWidget);
+    expect(find.textContaining("Engine Overhaul"), findsWidgets);
+    expect(find.text("ADVANCE PAYMENT"), findsOneWidget);
+    expect(find.text("BILL COLLECTION"), findsOneWidget);
   });
 }
 

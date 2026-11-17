@@ -1,4 +1,4 @@
-﻿import "package:flutter/material.dart";
+import "package:flutter/material.dart";
 import "package:flutter_riverpod/flutter_riverpod.dart";
 import "package:intl/intl.dart";
 import "../../../core/localization/app_localizations.dart";
@@ -55,7 +55,37 @@ class _CustomerHistoryScreenState extends ConsumerState<CustomerHistoryScreen> {
 
     // Customer works & payments
     final customerWorks = works.where((w) => w.customerId == activeCustomer.id).toList();
-    final customerPayments = payments.where((p) => p.customerId == activeCustomer.id).toList();
+    final List<PaymentRecord> customerPayments = [
+      ...payments.where((p) =>
+          p.customerId == activeCustomer.id ||
+          (p.customerName.isNotEmpty &&
+              p.customerName.trim().toLowerCase() == activeCustomer.name.trim().toLowerCase())),
+    ];
+
+    final existingAdvWorkIds = customerPayments
+        .where((p) => p.paymentCategory.toLowerCase().contains("advance"))
+        .map((p) => p.workId)
+        .toSet();
+
+    for (final w in customerWorks) {
+      if (w.advancePaid > 0 && !existingAdvWorkIds.contains(w.id)) {
+        customerPayments.add(PaymentRecord(
+          id: "adv_${w.id}",
+          workId: w.id,
+          workTitle: w.title,
+          customerId: w.customerId,
+          customerName: w.customerName,
+          customerPhone: activeCustomer.phone,
+          billNumber: w.billNumber ?? "ADVANCE",
+          amount: w.advancePaid,
+          paymentType: w.paymentAccount ?? "cash",
+          paymentDate: w.inProgressStartTime ?? DateTime.now(),
+          notes: w.actionNote.isNotEmpty ? "Advance paid • ${w.actionNote}" : "Advance paid at work creation",
+          paymentCategory: "Advance Payment",
+        ));
+      }
+    }
+    customerPayments.sort((a, b) => b.paymentDate.compareTo(a.paymentDate));
 
     double totalBilled = 0.0;
     double totalPaid = 0.0;
@@ -314,20 +344,90 @@ class _CustomerHistoryScreenState extends ConsumerState<CustomerHistoryScreen> {
               )
             else
               ...customerPayments.map((p) {
+                final isAdvance = p.paymentCategory.toLowerCase().contains("advance");
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    leading: CircleAvatar(
-                      backgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.1),
-                      child: const Icon(Icons.receipt, color: Color(0xFF0D9488), size: 18),
-                    ),
-                    title: Text(
-                      "₹ ${p.amount.toStringAsFixed(2)}  (${p.paymentType.toUpperCase()})",
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
-                    ),
-                    subtitle: Text(
-                      "Bill: ${p.billNumber}  •  ${dateFormat.format(p.paymentDate)}",
-                      style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12.0, vertical: 8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Row(
+                              children: [
+                                CircleAvatar(
+                                  radius: 12,
+                                  backgroundColor: isAdvance
+                                      ? Colors.amber.shade100
+                                      : const Color(0xFF0D9488).withValues(alpha: 0.1),
+                                  child: Icon(
+                                    isAdvance ? Icons.bookmark_added_outlined : Icons.receipt,
+                                    color: isAdvance ? Colors.amber.shade900 : const Color(0xFF0D9488),
+                                    size: 14,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "₹ ${p.amount.toStringAsFixed(2)}",
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Color(0xFF0D9488)),
+                                ),
+                                const SizedBox(width: 6),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: isAdvance ? Colors.amber.shade50 : Colors.teal.shade50,
+                                    borderRadius: BorderRadius.circular(4),
+                                    border: Border.all(
+                                      color: (isAdvance ? Colors.amber.shade800 : Colors.teal.shade800).withValues(alpha: 0.3),
+                                    ),
+                                  ),
+                                  child: Text(
+                                    isAdvance ? "ADVANCE" : "COLLECTED",
+                                    style: TextStyle(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.bold,
+                                      color: isAdvance ? Colors.amber.shade900 : Colors.teal.shade800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Text(
+                              p.paymentType.toUpperCase(),
+                              style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.blueGrey.shade700),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          "${p.workTitle} ${p.billNumber.isNotEmpty ? '• ${p.billNumber}' : ''}  •  ${dateFormat.format(p.paymentDate)}",
+                          style: TextStyle(fontSize: 11, color: Colors.grey.shade600),
+                        ),
+                        if (p.notes.isNotEmpty) ...[
+                          const SizedBox(height: 4),
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: Colors.grey.shade100,
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.note_alt_outlined, size: 12, color: Color(0xFF1E3A8A)),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    p.notes,
+                                    style: TextStyle(fontSize: 11, color: Colors.blueGrey.shade800, fontStyle: FontStyle.italic),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                   ),
                 );
