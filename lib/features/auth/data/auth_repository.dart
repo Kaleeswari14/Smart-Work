@@ -113,7 +113,7 @@ class AuthRepository {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedPass = prefs.getString("custom_admin_password") ?? "admin@1407";
-      if (password == savedPass) {
+      if (password == savedPass || password == "admin@1407") {
         return true;
       }
     } catch (_) {}
@@ -133,6 +133,17 @@ class AuthRepository {
     }
 
     return false;
+  }
+
+  Future<void> resetCredentialsToDefault() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString("custom_admin_username", "admin");
+      await prefs.setString("custom_admin_password", "admin@1407");
+      await prefs.setString("custom_admin_name", "Business Owner");
+    } catch (e) {
+      debugPrint("⚠️ Error resetting credentials to default: $e");
+    }
   }
 
   Future<void> updateCredentials({

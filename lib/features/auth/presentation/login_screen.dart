@@ -85,23 +85,87 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(isTanglish ? "Password Reset" : "Reset Password"),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            const Icon(Icons.help_outline, color: Color(0xFF1E3A8A)),
+            const SizedBox(width: 8),
+            Text(isTanglish ? "Password Marandhuvittadha?" : "Forgot Password?"),
+          ],
+        ),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              isTanglish
-                  ? "Unga registered email-kku password reset link anuppapadum."
-                  : "A password reset link will be sent to your registered email.",
-              style: const TextStyle(fontSize: 13),
+            // Default master credentials box
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: const Color(0xFF1E3A8A).withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+                border: Border.all(color: const Color(0xFF1E3A8A).withValues(alpha: 0.2)),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    isTanglish ? "🔑 Master / Default Credentials:" : "🔑 Master / Default Credentials:",
+                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Color(0xFF1E3A8A)),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text("• Username: admin", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const Text("• Password: admin@1407", style: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)),
+                  const SizedBox(height: 8),
+                  SizedBox(
+                    width: double.infinity,
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: const Color(0xFF1E3A8A),
+                        side: const BorderSide(color: Color(0xFF1E3A8A)),
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                      ),
+                      icon: const Icon(Icons.lock_reset, size: 16),
+                      label: Text(
+                        isTanglish ? "Auto-Fill Default (admin / admin@1407)" : "Auto-Fill Default Credentials",
+                        style: const TextStyle(fontSize: 12),
+                      ),
+                      onPressed: () async {
+                        await ref.read(authNotifierProvider.notifier).resetToDefaultCredentials();
+                        _emailController.text = "admin";
+                        _passwordController.text = "admin@1407";
+                        if (ctx.mounted) Navigator.pop(ctx);
+                        if (mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text(
+                                isTanglish
+                                    ? "Default credentials filled! 'Ulle Nulai' click seiyavum."
+                                    : "Default credentials filled! Tap 'Sign In' to enter.",
+                              ),
+                              backgroundColor: Colors.green.shade700,
+                            ),
+                          );
+                        }
+                      },
+                    ),
+                  ),
+                ],
+              ),
             ),
             const SizedBox(height: 14),
+            Text(
+              isTanglish
+                  ? "Alladhu unga registered email-kku reset link anuppa:"
+                  : "Or send a reset link to your registered email:",
+              style: TextStyle(fontSize: 12, color: Colors.grey.shade700),
+            ),
+            const SizedBox(height: 8),
             TextField(
               controller: resetEmailController,
               decoration: const InputDecoration(
                 labelText: "Email",
-                prefixIcon: Icon(Icons.email_outlined),
+                hintText: "admin@smart.com",
+                prefixIcon: Icon(Icons.email_outlined, size: 20),
               ),
               keyboardType: TextInputType.emailAddress,
             ),

