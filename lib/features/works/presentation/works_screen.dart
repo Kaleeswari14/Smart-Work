@@ -17,6 +17,14 @@ class WorksScreen extends ConsumerStatefulWidget {
 
 class _WorksScreenState extends ConsumerState<WorksScreen> {
   String _selectedStatusFilter = "all";
+  String _searchQuery = "";
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   void _showWorkDetailsDialog(WorkItem work) {
     showModalBottomSheet(
@@ -775,17 +783,71 @@ class _WorksScreenState extends ConsumerState<WorksScreen> {
   @override
   Widget build(BuildContext context) {
     final works = ref.watch(worksListProvider);
-    final filteredWorks = _selectedStatusFilter == "all"
-        ? works
-        : works.where((w) => w.status == _selectedStatusFilter).toList();
+    final customers = ref.watch(customersListProvider);
+
+    final query = _searchQuery.trim().toLowerCase();
+    final filteredWorks = works.where((w) {
+      // 1. Status Filter
+      if (_selectedStatusFilter != "all" && w.status != _selectedStatusFilter) {
+        return false;
+      }
+      // 2. Search Query
+      if (query.isNotEmpty) {
+        final inTitle = w.title.toLowerCase().contains(query);
+        final inDesc = w.description.toLowerCase().contains(query);
+        final inCustomer = w.customerName.toLowerCase().contains(query);
+        final inBill = (w.billNumber ?? "").toLowerCase().contains(query);
+        final inAction = w.actionNote.toLowerCase().contains(query);
+        final inCost = w.totalCost.toString().contains(query);
+        final matchedCust = customers.where((c) => c.id == w.customerId).firstOrNull;
+        final inPhone = (matchedCust?.phone ?? "").contains(query);
+        final inAddress = (matchedCust?.address ?? "").toLowerCase().contains(query);
+        return inTitle || inDesc || inCustomer || inBill || inAction || inCost || inPhone || inAddress;
+      }
+      return true;
+    }).toList();
 
     return Stack(
       children: [
         Column(
           children: [
+            // Search Bar for Works
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 6.0),
+              child: TextField(
+                controller: _searchController,
+                onChanged: (val) => setState(() => _searchQuery = val),
+                decoration: InputDecoration(
+                  hintText: "Search works by customer, phone, title, bill...",
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _searchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _searchController.clear();
+                            setState(() => _searchQuery = "");
+                          },
+                        )
+                      : null,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+            ),
+
             // Status Filter Chips & Add Work Header Button
             Padding(
-              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 4.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 4.0, 16.0, 4.0),
               child: SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(

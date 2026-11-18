@@ -601,15 +601,15 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
         Column(
           children: [
             Padding(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.fromLTRB(16.0, 12.0, 16.0, 6.0),
               child: TextField(
                 controller: _searchController,
                 decoration: InputDecoration(
-                  hintText: context.tr("search"),
-                  prefixIcon: const Icon(Icons.search),
+                  hintText: "Search customer by name, phone, address...",
+                  prefixIcon: const Icon(Icons.search, size: 20),
                   suffixIcon: _searchController.text.isNotEmpty
                       ? IconButton(
-                          icon: const Icon(Icons.clear),
+                          icon: const Icon(Icons.clear, size: 18),
                           onPressed: () {
                             setState(() {
                               _searchController.clear();
@@ -617,6 +617,18 @@ class _CustomersScreenState extends ConsumerState<CustomersScreen> {
                           },
                         )
                       : null,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
                 ),
                 onChanged: (_) => setState(() {}),
               ),

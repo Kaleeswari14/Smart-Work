@@ -20,10 +20,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
   String _searchQuery = "";
   String _selectedCategoryFilter = "all"; // all, advance, bill, cash, online
   final TextEditingController _searchController = TextEditingController();
+  String _pendingSearchQuery = "";
+  String _pendingFilter = "all"; // all, unbilled, billed
+  final TextEditingController _pendingSearchController = TextEditingController();
 
   @override
   void dispose() {
     _searchController.dispose();
+    _pendingSearchController.dispose();
     super.dispose();
   }
 
@@ -287,7 +291,16 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
                             paymentCategory: selectedCategory,
                           );
 
-                      // 2. Mark collected in Works
+                      // 2. If unbilled, create bill record automatically
+                      if (work.billingStatus != "billed") {
+                        ref.read(worksListProvider.notifier).createBill(
+                              workId: work.id,
+                              billNumber: billNo,
+                              billedAmount: work.totalCost,
+                            );
+                      }
+
+                      // 3. Mark collected in Works
                       ref.read(worksListProvider.notifier).markPaymentCollected(
                             workId: work.id,
                             amount: amt,
@@ -373,8 +386,8 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
     final totalCollected = combinedHistory.fold(0.0, (sum, p) => sum + p.amount);
     final totalOutstanding = works.fold(0.0, (sum, w) => sum + w.balanceDue);
 
-    // Pending collection works: works that are completed OR have balanceDue > 0
-    final pendingWorks = works.where((w) => w.status == "completed" || w.balanceDue > 0).toList();
+    // Pending collection works: works with balanceDue > 0
+    final pendingWorks = works.where((w) => w.balanceDue > 0).toList();
 
     return Column(
       children: [
@@ -463,14 +476,14 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
         // Tab View Content
         Expanded(
           child: _selectedTabIndex == 0
-              ? _buildPendingCollectionView(pendingWorks)
+              ? _buildPendingCollectionView(pendingWorks, customers)
               : _buildCollectedHistoryView(combinedHistory, customers, works),
         ),
       ],
     );
   }
 
-  Widget _buildPendingCollectionView(List<WorkItem> pendingWorks) {
+  Widget _buildPendingCollectionView(List<WorkItem> pendingWorks, List<CustomerItem> customers) {
     if (pendingWorks.isEmpty) {
       return EmptyStateView(
         icon: Icons.check_circle_outline,
@@ -479,177 +492,294 @@ class _PaymentsScreenState extends ConsumerState<PaymentsScreen> {
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-      itemCount: pendingWorks.length,
-      itemBuilder: (ctx, index) {
-        final work = pendingWorks[index];
-        final isBilled = work.billingStatus == "billed";
+    final query = _pendingSearchQuery.trim().toLowerCase();
+    final filteredPending = pendingWorks.where((w) {
+      // 1. Status Filter
+      if (_pendingFilter == "unbilled" && w.billingStatus == "billed") return false;
+      if (_pendingFilter == "billed" && w.billingStatus != "billed") return false;
 
-        return Card(
-          margin: const EdgeInsets.only(bottom: 12.0),
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      work.customerName,
-                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: isBilled
-                            ? (work.balanceDue > 0 ? Colors.amber.withValues(alpha: 0.15) : Colors.green.withValues(alpha: 0.15))
-                            : Colors.blue.withValues(alpha: 0.15),
-                        borderRadius: BorderRadius.circular(6),
-                      ),
-                      child: Text(
-                        isBilled
-                            ? (work.balanceDue > 0 ? "PAYMENT PENDING" : "PAID")
-                            : "BILLING READY",
-                        style: TextStyle(
-                          fontSize: 10,
-                          fontWeight: FontWeight.bold,
-                          color: isBilled
-                              ? (work.balanceDue > 0 ? Colors.amber.shade900 : Colors.green.shade800)
-                              : Colors.blue.shade800,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  work.title,
-                  style: TextStyle(fontSize: 13, color: Colors.grey.shade700),
-                ),
-                if (work.actionNote.isNotEmpty) ...[
-                  const SizedBox(height: 4),
-                  Text(
-                    "Action: ${work.actionNote}",
-                    style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic),
+      // 2. Search Query
+      if (query.isNotEmpty) {
+        final inTitle = w.title.toLowerCase().contains(query);
+        final inCustomer = w.customerName.toLowerCase().contains(query);
+        final inBill = (w.billNumber ?? "").toLowerCase().contains(query);
+        final inAction = w.actionNote.toLowerCase().contains(query);
+        final inBalance = w.balanceDue.toString().contains(query);
+        final matchedCust = customers.where((c) => c.id == w.customerId).firstOrNull;
+        final inPhone = (matchedCust?.phone ?? "").contains(query);
+        return inTitle || inCustomer || inBill || inAction || inBalance || inPhone;
+      }
+      return true;
+    }).toList();
+
+    final unbilledCount = pendingWorks.where((w) => w.billingStatus != "billed").length;
+    final billedCount = pendingWorks.where((w) => w.billingStatus == "billed").length;
+
+    return Column(
+      children: [
+        // Search & Filter Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+          child: Column(
+            children: [
+              // Search Input
+              TextField(
+                controller: _pendingSearchController,
+                onChanged: (val) => setState(() => _pendingSearchQuery = val),
+                decoration: InputDecoration(
+                  hintText: "Search pending by customer, phone, work, bill...",
+                  prefixIcon: const Icon(Icons.search, size: 20),
+                  suffixIcon: _pendingSearchQuery.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, size: 18),
+                          onPressed: () {
+                            _pendingSearchController.clear();
+                            setState(() => _pendingSearchQuery = "");
+                          },
+                        )
+                      : null,
+                  isDense: true,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  filled: true,
+                  fillColor: Colors.grey.shade100,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
                   ),
-                ],
-                const Divider(height: 20),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: BorderSide(color: Colors.grey.shade300),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 8),
 
-                // Financial Overview
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              // Filter Chips
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: Row(
                   children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          isBilled ? "Bill: ${work.billNumber}" : "Total Cost: ₹ ${work.totalCost.toStringAsFixed(2)}",
-                          style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          "Paid/Adv: ₹ ${(work.advancePaid + work.collectedPayment).toStringAsFixed(2)}",
-                          style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
-                        ),
-                      ],
-                    ),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(isBilled ? "Balance Due" : "Billed Amount Due", style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                        Text(
-                          "₹ ${(work.balanceDue > 0 ? work.balanceDue : work.totalCost).toStringAsFixed(2)}",
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: Colors.red.shade700,
-                          ),
-                        ),
-                      ],
-                    ),
+                    _buildPendingFilterChip("all", "All (${pendingWorks.length})"),
+                    const SizedBox(width: 6),
+                    _buildPendingFilterChip("unbilled", "Billing Ready ($unbilledCount)"),
+                    const SizedBox(width: 6),
+                    _buildPendingFilterChip("billed", "Billed Due ($billedCount)"),
                   ],
                 ),
-                const SizedBox(height: 14),
-
-                // Action Buttons based on Billing Status
-                if (!isBilled) ...[
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF1E3A8A),
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size.fromHeight(40),
-                    ),
-                    icon: const Icon(Icons.receipt, size: 16),
-                    label: Text(context.tr("generate_bill")),
-                    onPressed: () => _showGenerateBillDialog(work),
-                  ),
-                ] else ...[
-                  if (work.balanceDue > 0) ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF0D9488),
-                              foregroundColor: Colors.white,
-                              minimumSize: const Size.fromHeight(40),
-                            ),
-                            icon: const Icon(Icons.payment, size: 16),
-                            label: Text(context.tr("collect_payment")),
-                            onPressed: () => _showCollectPaymentDialog(work),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFF1E3A8A).withValues(alpha: 0.1),
-                          ),
-                          icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF1E3A8A)),
-                          tooltip: "Print Invoice",
-                          onPressed: () => PdfInvoiceService.printOrShareInvoice(work: work),
-                        ),
-                      ],
-                    ),
-                  ] else ...[
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Container(
-                            padding: const EdgeInsets.all(8),
-                            decoration: BoxDecoration(
-                              color: Colors.green.shade50,
-                              borderRadius: BorderRadius.circular(6),
-                            ),
-                            child: Center(
-                              child: Text(
-                                "Payment Settled in Full (${work.paymentAccount?.toUpperCase() ?? ''})",
-                                style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.bold,
-                                  color: Colors.green.shade700,
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
-                        const SizedBox(width: 8),
-                        IconButton(
-                          style: IconButton.styleFrom(
-                            backgroundColor: const Color(0xFF0D9488).withValues(alpha: 0.1),
-                          ),
-                          icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF0D9488)),
-                          tooltip: "Print Invoice",
-                          onPressed: () => PdfInvoiceService.printOrShareInvoice(work: work),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ],
-            ),
+              ),
+            ],
           ),
-        );
+        ),
+
+        const SizedBox(height: 6),
+
+        Expanded(
+          child: filteredPending.isEmpty
+              ? Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.search_off, size: 48, color: Colors.grey.shade400),
+                        const SizedBox(height: 8),
+                        Text(
+                          "No pending collections match your search or filter",
+                          style: TextStyle(color: Colors.grey.shade600, fontSize: 13),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : ListView.builder(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4.0),
+                  itemCount: filteredPending.length,
+                  itemBuilder: (ctx, index) {
+                    final work = filteredPending[index];
+                    final isBilled = work.billingStatus == "billed";
+                    final matchedCust = customers.where((c) =>
+                        c.id == work.customerId ||
+                        c.name.trim().toLowerCase() == work.customerName.trim().toLowerCase()).firstOrNull;
+                    final customerPhone = matchedCust?.phone ?? "";
+
+                    return Card(
+                      margin: const EdgeInsets.only(bottom: 12.0),
+                      elevation: 1.5,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        side: BorderSide(color: Colors.grey.shade200),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(16.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Header Row: Customer Name, Phone, and Billing Badge
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        work.customerName,
+                                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                      ),
+                                      if (customerPhone.isNotEmpty) ...[
+                                        const SizedBox(height: 2),
+                                        Row(
+                                          children: [
+                                            Icon(Icons.phone, size: 12, color: Colors.grey.shade600),
+                                            const SizedBox(width: 4),
+                                            Text(
+                                              customerPhone,
+                                              style: TextStyle(fontSize: 12, color: Colors.grey.shade700, fontWeight: FontWeight.w500),
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: isBilled
+                                        ? Colors.amber.withValues(alpha: 0.15)
+                                        : Colors.blue.withValues(alpha: 0.15),
+                                    borderRadius: BorderRadius.circular(6),
+                                  ),
+                                  child: Text(
+                                    isBilled ? "PAYMENT PENDING" : "BILLING READY",
+                                    style: TextStyle(
+                                      fontSize: 10,
+                                      fontWeight: FontWeight.bold,
+                                      color: isBilled ? Colors.amber.shade900 : Colors.blue.shade800,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 6),
+                            Text(
+                              work.title,
+                              style: TextStyle(fontSize: 13, color: Colors.grey.shade800, fontWeight: FontWeight.w500),
+                            ),
+                            if (work.actionNote.isNotEmpty) ...[
+                              const SizedBox(height: 4),
+                              Text(
+                                "Action: ${work.actionNote}",
+                                style: TextStyle(fontSize: 12, color: Colors.blueGrey.shade700, fontStyle: FontStyle.italic),
+                              ),
+                            ],
+                            const Divider(height: 20),
+
+                            // Financial Overview Row
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      isBilled
+                                          ? "Bill: ${work.billNumber ?? ''}"
+                                          : "Total Cost: ₹ ${work.totalCost.toStringAsFixed(2)}",
+                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      "Paid/Adv: ₹ ${(work.advancePaid + work.collectedPayment).toStringAsFixed(2)}",
+                                      style: TextStyle(fontSize: 12, color: Colors.grey.shade600),
+                                    ),
+                                  ],
+                                ),
+                                Column(
+                                  crossAxisAlignment: CrossAxisAlignment.end,
+                                  children: [
+                                    Text(
+                                      "Balance Due (வர வேண்டியவை)",
+                                      style: TextStyle(fontSize: 10, color: Colors.grey.shade600, fontWeight: FontWeight.bold),
+                                    ),
+                                    Text(
+                                      "₹ ${work.balanceDue.toStringAsFixed(2)}",
+                                      style: TextStyle(
+                                        fontSize: 18,
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red.shade700,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 14),
+
+                            // Action Buttons: ALWAYS allow Collect Payment!
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                      backgroundColor: const Color(0xFF0D9488),
+                                      foregroundColor: Colors.white,
+                                      minimumSize: const Size.fromHeight(40),
+                                    ),
+                                    icon: const Icon(Icons.payment, size: 16),
+                                    label: Text(context.tr("collect_payment")),
+                                    onPressed: () => _showCollectPaymentDialog(work),
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                if (!isBilled)
+                                  OutlinedButton.icon(
+                                    style: OutlinedButton.styleFrom(
+                                      foregroundColor: const Color(0xFF1E3A8A),
+                                      side: const BorderSide(color: Color(0xFF1E3A8A)),
+                                      minimumSize: const Size(120, 40),
+                                    ),
+                                    icon: const Icon(Icons.receipt, size: 16),
+                                    label: Text(context.tr("generate_bill")),
+                                    onPressed: () => _showGenerateBillDialog(work),
+                                  )
+                                else
+                                  IconButton(
+                                    style: IconButton.styleFrom(
+                                      backgroundColor: const Color(0xFF1E3A8A).withValues(alpha: 0.1),
+                                    ),
+                                    icon: const Icon(Icons.picture_as_pdf, color: Color(0xFF1E3A8A)),
+                                    tooltip: "Print Invoice",
+                                    onPressed: () => PdfInvoiceService.printOrShareInvoice(work: work),
+                                  ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPendingFilterChip(String value, String label) {
+    final isSelected = _pendingFilter == value;
+    return FilterChip(
+      selected: isSelected,
+      label: Text(label),
+      labelStyle: TextStyle(
+        fontSize: 11,
+        fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+        color: isSelected ? Colors.white : Colors.grey.shade800,
+      ),
+      selectedColor: const Color(0xFF1E3A8A),
+      backgroundColor: Colors.grey.shade100,
+      visualDensity: VisualDensity.compact,
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      onSelected: (_) {
+        setState(() => _pendingFilter = value);
       },
     );
   }

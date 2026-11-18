@@ -120,14 +120,15 @@ void main() {
     await tester.tap(addWorkBtn);
     await tester.pumpAndSettle();
 
+    // Fill work form (at(0) is works search bar, at(1) is Customer, at(2) is Title, at(3) is Desc, at(4) is Cost, at(5) is Advance)
     final workFields = find.byType(TextField);
-    await tester.enterText(workFields.at(0), "Ramesh");
+    await tester.enterText(workFields.at(1), "Ramesh");
     await tester.pumpAndSettle();
 
-    await tester.enterText(workFields.at(1), "Engine Overhaul");
-    await tester.enterText(workFields.at(2), "Full servicing of engine");
-    await tester.enterText(workFields.at(3), "5000");
-    await tester.enterText(workFields.at(4), "1000");
+    await tester.enterText(workFields.at(2), "Engine Overhaul");
+    await tester.enterText(workFields.at(3), "Full servicing of engine");
+    await tester.enterText(workFields.at(4), "5000");
+    await tester.enterText(workFields.at(5), "1000");
     await tester.pumpAndSettle();
 
     final saveWorkBtn = find.widgetWithText(ElevatedButton, "Save").first;
@@ -160,7 +161,7 @@ void main() {
     await tester.pumpAndSettle();
 
     // In the Complete Work dialog, enter action and tap Confirm Complete
-    final actionInput = find.byType(TextField).first;
+    final actionInput = find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextField)).first;
     await tester.enterText(actionInput, "Engine overhauled and tuned");
     final confirmCompleteBtn = find.byType(ElevatedButton).last;
     await tester.tap(confirmCompleteBtn);
